@@ -1,0 +1,126 @@
+using EShopy.Domain.Common.Errors;
+using EShopy.Domain.Common.Exceptions;
+
+namespace EShopy.Domain.Products;
+
+public sealed class Product
+{
+  private Product(Guid id,
+    Guid tenantId,
+    string slug,
+    string name,
+    string? description,
+    decimal price,
+    string currencyCode,
+    ProductStatus status,
+    int stockOnHand,
+    DateTime createdAtUtc,
+    DateTime updatedAtUtc)
+  {
+    Id = id;
+    TenantId = tenantId;
+    Slug = slug;
+    Name = name;
+    Description = description;
+    Price = price;
+    CurrencyCode = currencyCode;
+    Status = status;
+    StockOnHand = stockOnHand;
+    CreatedAtUtc = createdAtUtc;
+    UpdatedAtUtc = updatedAtUtc;
+  }
+
+  public Guid Id { get; }
+  public Guid TenantId { get; }
+  public string Slug { get; private set; }
+  public string Name { get; private set; }
+  public string? Description { get; private set; }
+  public decimal Price { get; private set; }
+  public string CurrencyCode { get; private set; }
+  public ProductStatus Status { get; private set; }
+  public int StockOnHand { get; private set; }
+  public DateTime CreatedAtUtc { get; }
+  public DateTime UpdatedAtUtc { get; private set; }
+
+  public static Product Create(Guid tenantId,
+    string slug,
+    string name,
+    string? description,
+    decimal price,
+    int stockOnHand,
+    string currencyCode,
+    DateTime createdAtUtc)
+  {
+    var normalizedSlug = NormalizeSlug(slug);
+    EnsureName(name);
+    EnsurePrice(price);
+    EnsureStock(stockOnHand);
+    EnsureCurrency(currencyCode);
+
+    return new Product(Guid.NewGuid(),
+      tenantId,
+      normalizedSlug,
+      name.Trim(),
+      NormalizeDescription(description),
+      price,
+      currencyCode.Trim().ToUpperInvariant(),
+      ProductStatus.Draft,
+      stockOnHand,
+      createdAtUtc,
+      createdAtUtc);
+  }
+
+  public void UpdateDetails(string name, string? description, decimal price, int stockOnHand, DateTime updatedAtUtc)
+  {
+    EnsureName(name);
+    EnsurePrice(price);
+    EnsureStock(stockOnHand);
+
+    Name = name.Trim();
+    Description = NormalizeDescription(description);
+    Price = price;
+    StockOnHand = stockOnHand;
+    UpdatedAtUtc = updatedAtUtc;
+  }
+
+  public void ChangeStatus(ProductStatus status, DateTime updatedAtUtc)
+  {
+    Status = status;
+    UpdatedAtUtc = updatedAtUtc;
+  }
+
+  private static string NormalizeSlug(string slug)
+  {
+    if (string.IsNullOrWhiteSpace(slug))
+      throw new DomainException(ErrorCodes.ValidationError, "El slug del producto es obligatorio.");
+
+    return slug.Trim().ToLowerInvariant();
+  }
+
+  private static void EnsureName(string name)
+  {
+    if (string.IsNullOrWhiteSpace(name))
+      throw new DomainException(ErrorCodes.ValidationError, "El nombre del producto es obligatorio.");
+  }
+
+  private static void EnsurePrice(decimal price)
+  {
+    if (price < 0)
+      throw new DomainException(ErrorCodes.ValidationError, "El precio del producto debe ser mayor o igual a cero.");
+  }
+
+  private static void EnsureStock(int stockOnHand)
+  {
+    if (stockOnHand < 0)
+      throw new DomainException(ErrorCodes.ValidationError, "El stock del producto debe ser mayor o igual a cero.");
+  }
+
+  private static void EnsureCurrency(string currencyCode)
+  {
+    if (string.IsNullOrWhiteSpace(currencyCode))
+      throw new DomainException(ErrorCodes.ValidationError, "El código de moneda es obligatorio.");
+  }
+
+  private static string? NormalizeDescription(string? description)
+    => string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+}
