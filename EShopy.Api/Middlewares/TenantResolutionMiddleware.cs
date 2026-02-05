@@ -13,11 +13,11 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next)
     var subdomain = ExtractSubdomain(host);
 
     if (string.IsNullOrWhiteSpace(subdomain))
-      throw new DomainException(ErrorCodes.TenantNotFound, "Tenant subdomain is missing.");
+      throw new DomainException(ErrorCodes.TenantNotFound, "Falta el subdominio del tenant.");
 
     var tenantId = await tenantResolver.ResolveTenantIdAsync(subdomain, ctx.RequestAborted);
     if (tenantId is null)
-      throw new DomainException(ErrorCodes.TenantNotFound, $"Tenant not found for subdomain '{subdomain}'.");
+      throw new DomainException(ErrorCodes.TenantNotFound, $"Tenant no encontrado para el subdominio '{subdomain}'.");
 
     tenantContext.Set(tenantId.Value, subdomain);
 
