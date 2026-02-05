@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>EShopy.Infrastructure</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Domain\EShopy.Domain.csproj" />
+<ProjectReference Include="..\Application\EShopy.Application.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+
+  </ItemGroup>
+</Project>
