@@ -85,22 +85,9 @@ public sealed class Product
 
   public void ChangeStatus(ProductStatus status, DateTime updatedAtUtc)
   {
-    if (!IsTransitionAllowed(Status, status))
-      throw new DomainException(ErrorCodes.ValidationError, "Transición de estado de producto no permitida.");
-
     Status = status;
     UpdatedAtUtc = updatedAtUtc;
   }
-
-  private static bool IsTransitionAllowed(ProductStatus current, ProductStatus next)
-    => (current, next) switch
-    {
-      (ProductStatus.Draft, ProductStatus.Active) => true,
-      (ProductStatus.Draft, ProductStatus.Archived) => true,
-      (ProductStatus.Active, ProductStatus.Archived) => true,
-      (ProductStatus.Archived, ProductStatus.Active) => true,
-      _ => false
-    };
 
   private static string NormalizeSlug(string slug)
   {

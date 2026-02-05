@@ -66,7 +66,6 @@ public sealed class ProductsController(TenantContext tenantContext, IProductRepo
     return Ok(ToAdminDto(product));
   }
 
-  /// <summary>Actualiza los datos del producto (el slug no se modifica).</summary>
   [HttpPut("{id:guid}")]
   [ProducesResponseType(typeof(ProductAdminDto), StatusCodes.Status200OK)]
   public async Task<ActionResult<ProductAdminDto>> Update(Guid id, [FromBody] UpdateProductRequest request, CancellationToken ct)
