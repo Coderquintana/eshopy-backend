@@ -19,7 +19,7 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Glob
     catch (DomainException ex)
     {
       log.LogWarning(ex, "Domain error: {Code}", ex.Code);
-      await WriteError(ctx, HttpStatusCode.Conflict, ex.Code, ex.Message, null);
+      await WriteError(ctx, MapStatus(ex.Code), ex.Code, ex.Message, null);
     }
     catch (Exception ex)
     {
@@ -43,4 +43,16 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Glob
 
     await ctx.Response.WriteAsync(JsonSerializer.Serialize(res, JsonOptions));
   }
+
+  private static HttpStatusCode MapStatus(string code)
+    => code switch
+    {
+      ErrorCodes.ValidationError => HttpStatusCode.BadRequest,
+      ErrorCodes.TenantNotFound => HttpStatusCode.NotFound,
+      ErrorCodes.NotFound => HttpStatusCode.NotFound,
+      ErrorCodes.Unauthorized => HttpStatusCode.Unauthorized,
+      ErrorCodes.Forbidden => HttpStatusCode.Forbidden,
+      ErrorCodes.Conflict => HttpStatusCode.Conflict,
+      _ => HttpStatusCode.Conflict
+    };
 }
