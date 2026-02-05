@@ -22,7 +22,6 @@ public sealed class ProductsEndpointsTests : IClassFixture<WebApplicationFactory
   public async Task ProductsFlow_ShouldCreateAndExposePublicProduct()
   {
     var client = _factory.CreateClient();
-    client.DefaultRequestHeaders.Host = "demo.eshopy.com.py";
 
     var createRequest = new CreateProductRequest
     {

@@ -3,9 +3,9 @@
 ## Completed
 - Backend skeleton
 - Base documentation
-- Products module
 
 ## In Progress
+- Products module
 
 ## Pending
 - Cart module
