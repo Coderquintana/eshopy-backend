@@ -617,6 +617,10 @@ Propósito: definir el modelo de datos inicial (MVP) para SQL Server, incluyendo
 - Índices: IX_<TableName>_<Columns>
 - Checks: CK_<TableName>_<RuleName>
 1.3 Columnas base (AppEntity)
+1.4 Data JSON / Typed Data
+- La columna Data almacena JSON para extensiones no criticas.
+- El acceso debe ser tipado (ej. ProductData) usando helpers GetData/SetData.
+- No exponer Data directamente en API salvo casos justificados.
 Para todas las tablas multi-tenant:- Id (uniqueidentifier)- TenantId (uniqueidentifier)- CreatedAtUtc (datetime2)- CreatedBy (nvarchar(100))- UpdatedAtUtc (datetime2) NULL- UpdatedBy (nvarchar(100)) NULL- RowVersion (rowversion)- Data (nvarchar(max)) NULL  -- JSON para extensiones
 2. Multi-tenancy (TenantId)
 - Todas las tablas de negocio incluyen TenantId.- Toda clave única de negocio debe incluir TenantId.- Prohibido exponer TenantId como input directo en APIs (se resuelve por subdominio/token).- (Upgrade) Row-Level Security opcional post-MVP para hardening.
@@ -953,6 +957,7 @@ Notes:
 ```mermaiderDiagram  TENANTS ||--|| STORES : has  TENANTS ||--o{ TENANTUSERS : contains  STORES  ||--o{ PRODUCTS : offers  PRODUCTS ||--o{ PRODUCTIMAGES : has  STORES ||--o{ CARTS : owns  CARTS ||--o{ CARTITEMS : contains  PRODUCTS ||--o{ CARTITEMS : references  STORES ||--o{ ORDERS : receives  ORDERS ||--o{ ORDERITEMS : contains  ORDERS ||--o{ PAYMENTS : paid_by  PAYMENTS ||--o{ PAYMENTEVENTSPROCESSED : idempotency```
 7. Notas de implementación (EF Core / SQL Server)
 - Usar RowVersion como token de concurrencia (IsRowVersion).
+- En el mapping EF, agregar HasComment en todas las columnas.
 - Global Query Filter por TenantId en todas las tablas multi-tenant.
 - Interceptor SaveChanges para setear CreatedAtUtc/UpdatedAtUtc y validar TenantId.
 - Para OrderNumber por tenant: tabla TenantCounters o procedimiento atomizado.

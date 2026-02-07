@@ -52,6 +52,13 @@ Objetivo: dejar contexto operativo, decisiones y próximos pasos de manera conci
 - Siempre agregar `<summary>` en controllers y actions.
 - Mantener XML docs habilitado para Swagger (`GenerateDocumentationFile=true` + `IncludeXmlComments`).
 
+## EF Core / DB
+- DB dev: `EShopy.Dev` en `localhost\\SQLEXPRESS`.
+- Usar EF Core con SQL Server.
+- Todas las columnas deben tener `HasComment` en el mapping.
+- Mantener índices/constraints según documentación.
+- Si SQL Browser no está activo, usar `lpc:` en la connection string para evitar error de instancia.
+
 ## Commits
 - Mantener commits pequeños y temáticos.
 - Formato sugerido: `type(scope): resumen corto`
@@ -64,6 +71,7 @@ Objetivo: dejar contexto operativo, decisiones y próximos pasos de manera conci
 ### Resumen
 - Se consolidó documentación y se creó colección Postman base para endpoints MVP.
 - Se corrigieron referencias de proyectos y se normalizó el build con .NET 10.
+- Se añadió sección de Data JSON / typed data en modelo de datos.
 
 ### Documentación
 - Se eliminaron versiones duplicadas y se dejaron las finales en `Documentation Copy`.
