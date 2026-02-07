@@ -5,6 +5,7 @@ obj/
 # Visual Studio / VS Code
 .vs/
 .vscode/
+**/Properties/launchSettings.json
 
 # User-specific files
 *.user

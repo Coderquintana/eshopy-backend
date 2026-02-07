@@ -6,4 +6,5 @@ public sealed class UpdateProductRequest
   public string? Description { get; init; }
   public required decimal Price { get; init; }
   public required int StockOnHand { get; init; }
+  public string? Sku { get; init; }
 }

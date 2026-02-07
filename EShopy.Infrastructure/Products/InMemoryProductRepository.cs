@@ -100,4 +100,20 @@ public sealed class InMemoryProductRepository : IProductRepository
 
     return Task.FromResult(false);
   }
+
+  public Task<bool> SkuExistsAsync(Guid tenantId, string sku, Guid? excludingId, CancellationToken ct)
+  {
+    lock (_lock)
+    {
+      if (_products.TryGetValue(tenantId, out var list))
+      {
+        var exists = list.Any(p => p.Sku is not null
+          && string.Equals(p.Sku, sku, StringComparison.OrdinalIgnoreCase)
+          && (!excludingId.HasValue || p.Id != excludingId.Value));
+        return Task.FromResult(exists);
+      }
+    }
+
+    return Task.FromResult(false);
+  }
 }

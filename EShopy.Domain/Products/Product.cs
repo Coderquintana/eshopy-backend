@@ -8,6 +8,7 @@ public sealed class Product
   private Product(Guid id,
     Guid tenantId,
     string slug,
+    string? sku,
     string name,
     string? description,
     decimal price,
@@ -20,6 +21,7 @@ public sealed class Product
     Id = id;
     TenantId = tenantId;
     Slug = slug;
+    Sku = sku;
     Name = name;
     Description = description;
     Price = price;
@@ -33,6 +35,7 @@ public sealed class Product
   public Guid Id { get; }
   public Guid TenantId { get; }
   public string Slug { get; private set; }
+  public string? Sku { get; private set; }
   public string Name { get; private set; }
   public string? Description { get; private set; }
   public decimal Price { get; private set; }
@@ -44,6 +47,7 @@ public sealed class Product
 
   public static Product Create(Guid tenantId,
     string slug,
+    string? sku,
     string name,
     string? description,
     decimal price,
@@ -52,6 +56,7 @@ public sealed class Product
     DateTime createdAtUtc)
   {
     var normalizedSlug = NormalizeSlug(slug);
+    var normalizedSku = NormalizeSku(sku);
     EnsureName(name);
     EnsurePrice(price);
     EnsureStock(stockOnHand);
@@ -60,6 +65,7 @@ public sealed class Product
     return new Product(Guid.NewGuid(),
       tenantId,
       normalizedSlug,
+      normalizedSku,
       name.Trim(),
       NormalizeDescription(description),
       price,
@@ -70,16 +76,18 @@ public sealed class Product
       createdAtUtc);
   }
 
-  public void UpdateDetails(string name, string? description, decimal price, int stockOnHand, DateTime updatedAtUtc)
+  public void UpdateDetails(string name, string? description, decimal price, int stockOnHand, string? sku, DateTime updatedAtUtc)
   {
     EnsureName(name);
     EnsurePrice(price);
     EnsureStock(stockOnHand);
+    var normalizedSku = NormalizeSku(sku);
 
     Name = name.Trim();
     Description = NormalizeDescription(description);
     Price = price;
     StockOnHand = stockOnHand;
+    Sku = normalizedSku;
     UpdatedAtUtc = updatedAtUtc;
   }
 
@@ -119,6 +127,18 @@ public sealed class Product
   {
     if (string.IsNullOrWhiteSpace(currencyCode))
       throw new DomainException(ErrorCodes.ValidationError, "El código de moneda es obligatorio.");
+  }
+
+  public static string? NormalizeSku(string? sku)
+  {
+    if (string.IsNullOrWhiteSpace(sku))
+      return null;
+
+    var normalized = sku.Trim().ToUpperInvariant();
+    if (normalized.Length > 64)
+      throw new DomainException(ErrorCodes.ValidationError, "El SKU del producto no puede exceder 64 caracteres.");
+
+    return normalized;
   }
 
   private static string? NormalizeDescription(string? description)

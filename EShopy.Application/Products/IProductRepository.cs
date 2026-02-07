@@ -11,4 +11,5 @@ public interface IProductRepository
   Task<IReadOnlyList<Product>> GetAdminListAsync(Guid tenantId, CancellationToken ct);
   Task<IReadOnlyList<Product>> GetPublicListAsync(Guid tenantId, CancellationToken ct);
   Task<bool> SlugExistsAsync(Guid tenantId, string slug, Guid? excludingId, CancellationToken ct);
+  Task<bool> SkuExistsAsync(Guid tenantId, string sku, Guid? excludingId, CancellationToken ct);
 }

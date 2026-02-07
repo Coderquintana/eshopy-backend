@@ -1,5 +1,6 @@
 using EShopy.Api.Middlewares;
 using EShopy.Application.Common.Context;
+using EShopy.Application.Products;
 using EShopy.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +16,7 @@ builder.Services.AddScoped<UserContext>();
 
 // Infrastructure (tenant resolver placeholder)
 builder.Services.AddInfrastructure();
+builder.Services.AddScoped<IProductService, ProductService>();
 
 // Auth (Keycloak) - wiring placeholder:
 // builder.Services.AddAuthentication("Bearer").AddJwtBearer(...);

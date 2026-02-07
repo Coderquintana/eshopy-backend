@@ -41,6 +41,13 @@ Objetivo: dejar contexto operativo, decisiones y próximos pasos de manera conci
 - Colección: `Documentation/Postman/EShopy_Backend_MVP.postman_collection.json`
 - Entorno: `Documentation/Postman/EShopy_Backend_MVP.postman_environment.json`
 
+## Encoding (muy importante)
+- Todo el repo debe estar en UTF-8 (sin BOM).
+- En Windows/PowerShell, `Get-Content` usa encoding del sistema y puede mostrar mojibake. Preferir `Get-Content -Encoding utf8`.
+- Si ejecutas scripts (Python/PS), siempre leer/escribir con `encoding='utf-8'`.
+- Evitar “arreglar” archivos re-guardando con otra codificación.
+- El proyecto usa acentos y ñ (Paraguay). No eliminar ni reemplazar caracteres.
+
 ## Commits
 - Mantener commits pequeños y temáticos.
 - Formato sugerido: `type(scope): resumen corto`

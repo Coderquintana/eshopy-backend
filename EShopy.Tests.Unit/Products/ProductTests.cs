@@ -14,7 +14,7 @@ public sealed class ProductTests
     var tenantId = Guid.NewGuid();
     var now = new DateTime(2026, 2, 5, 19, 0, 0, DateTimeKind.Utc);
 
-    var product = Product.Create(tenantId, "coffee-mug", "Coffee Mug", "Nice mug", 10.5m, 3, "PYG", now);
+    var product = Product.Create(tenantId, "coffee-mug", null, "Coffee Mug", "Nice mug", 10.5m, 3, "PYG", now);
 
     product.TenantId.Should().Be(tenantId);
     product.Status.Should().Be(ProductStatus.Draft);
@@ -28,7 +28,7 @@ public sealed class ProductTests
   {
     var tenantId = Guid.NewGuid();
 
-    var act = () => Product.Create(tenantId, "coffee-mug", "Coffee Mug", null, -1m, 0, "PYG", DateTime.UtcNow);
+    var act = () => Product.Create(tenantId, "coffee-mug", null, "Coffee Mug", null, -1m, 0, "PYG", DateTime.UtcNow);
 
     act.Should().Throw<DomainException>()
       .Where(ex => ex.Code == ErrorCodes.ValidationError);
@@ -37,7 +37,7 @@ public sealed class ProductTests
   [Fact]
   public void ChangeStatus_ShouldUpdateStatus()
   {
-    var product = Product.Create(Guid.NewGuid(), "coffee-mug", "Coffee Mug", null, 10m, 0, "PYG", DateTime.UtcNow);
+    var product = Product.Create(Guid.NewGuid(), "coffee-mug", null, "Coffee Mug", null, 10m, 0, "PYG", DateTime.UtcNow);
 
     product.ChangeStatus(ProductStatus.Active, DateTime.UtcNow);
 
