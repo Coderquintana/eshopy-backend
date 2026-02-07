@@ -1,22 +1,71 @@
-# Tasks
+# TASKS
 
-## Completed
-- Backend skeleton
-- Base documentation
-- Products module
+Este archivo es el punto de entrada para todas las IAs (ChatGPT, Codex, Copilot).
+Objetivo: dejar contexto operativo, decisiones y próximos pasos de manera concisa.
 
-## In Progress
+## Mensaje para IAs
+- Leer primero este archivo antes de tocar código.
+- Respetar la arquitectura (monolito modular + Clean Architecture + vertical slices).
+- Multi-tenant por subdominio/host; aislamiento por TenantId en datos.
+- No exponer TenantId al frontend; se resuelve en backend.
+- Mantener contratos alineados con OpenAPI.
+- Priorizar consistencia sobre “innovación” en naming y estructuras existentes.
 
-## Pending
-- Cart module
-- Orders module
-- Payments module
-- EF Core integration
-- Keycloak integration
+## Contexto resumido del proyecto
+- Producto: eShopy (SaaS e-commerce, MVP Plan Básico).
+- Stack: .NET 10 backend, Angular frontend, Keycloak para auth.
+- Arquitectura: monolito modular con separación por dominios.
+- Persistencia: modelo SQL Server definido; actualmente hay repositorios in-memory.
+- Tests: unitarios + integración (smoke).
 
----
+## Módulos y estado (alto nivel)
+- Implementado: Products (dominio, aplicación, API, infraestructura, tests).
+- Pendiente: Cart, Orders, Payments, EF Core, Keycloak.
 
-# Historial de cambios
+## Fuentes de verdad (docs)
+- `Documentation Copy/` contiene los documentos base.
+- `documentation.md` es el compilado rápido (generado).
+- `Documentation/Postman/EShopy_Backend_MVP.postman_collection.json` define endpoints MVP.
+
+## Convenciones mínimas
+- DTOs y requests en inglés; comentarios y documentación en español.
+- Fechas en ISO 8601 UTC.
+- Errores estandarizados (ErrorResponse).
+- Evitar cambios masivos sin justificación.
+- Todo cambio en endpoints debe reflejarse en la colección Postman.
+- La colección Postman debe mantenerse completa y bien documentada.
+- Las entidades deben tener descripción por columna (comentarios) para que EF genere columnas con descripción en DB.
+- Si se agregan o modifican columnas, actualizar siempre sus descripciones.
+
+## Postman
+- Colección: `Documentation/Postman/EShopy_Backend_MVP.postman_collection.json`
+- Entorno: `Documentation/Postman/EShopy_Backend_MVP.postman_environment.json`
+
+## Commits
+- Mantener commits pequeños y temáticos.
+- Formato sugerido: `type(scope): resumen corto`
+- Tipos: feat, fix, docs, chore, refactor, test, build.
+- Incluir detalle en el body cuando haya cambios de arquitectura/contratos.
+
+# HISTORIAL DE CAMBIOS
+
+## 2026-02-07
+### Resumen
+- Se consolidó documentación y se creó colección Postman base para endpoints MVP.
+- Se corrigieron referencias de proyectos y se normalizó el build con .NET 10.
+
+### Documentación
+- Se eliminaron versiones duplicadas y se dejaron las finales en `Documentation Copy`.
+- Se actualizó consistencia de multi-tenant (resolución por subdominio/host).
+- Se corrigieron contratos (SKU opcional, código de error de producto).
+- Se generó `documentation.md` compilado.
+
+### Tooling
+- Se agregó `.gitignore` para artefactos de build.
+
+### Build
+- Se corrigieron rutas de ProjectReference en `EShopy.Api`, `EShopy.Application` y `EShopy.Infrastructure`.
+- Se agregó referencia a `Microsoft.Extensions.DependencyInjection` en infraestructura.
 
 ## 2025-02-14
 ### Resumen
