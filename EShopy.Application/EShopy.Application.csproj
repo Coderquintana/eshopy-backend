@@ -3,7 +3,7 @@
     <AssemblyName>EShopy.Application</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Domain\EShopy.Domain.csproj" />
+    <ProjectReference Include="..\EShopy.Domain\EShopy.Domain.csproj" />
   </ItemGroup>
   <ItemGroup>
 

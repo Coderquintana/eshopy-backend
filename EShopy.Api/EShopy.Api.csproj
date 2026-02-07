@@ -5,9 +5,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Domain\EShopy.Domain.csproj" />
-<ProjectReference Include="..\Application\EShopy.Application.csproj" />
-<ProjectReference Include="..\Infrastructure\EShopy.Infrastructure.csproj" />
+    <ProjectReference Include="..\EShopy.Domain\EShopy.Domain.csproj" />
+<ProjectReference Include="..\EShopy.Application\EShopy.Application.csproj" />
+<ProjectReference Include="..\EShopy.Infrastructure\EShopy.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
