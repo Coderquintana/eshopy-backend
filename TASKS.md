@@ -48,6 +48,10 @@ Objetivo: dejar contexto operativo, decisiones y próximos pasos de manera conci
 - Evitar “arreglar” archivos re-guardando con otra codificación.
 - El proyecto usa acentos y ñ (Paraguay). No eliminar ni reemplazar caracteres.
 
+## Swagger / XML Docs
+- Siempre agregar `<summary>` en controllers y actions.
+- Mantener XML docs habilitado para Swagger (`GenerateDocumentationFile=true` + `IncludeXmlComments`).
+
 ## Commits
 - Mantener commits pequeños y temáticos.
 - Formato sugerido: `type(scope): resumen corto`

@@ -2,13 +2,26 @@ using EShopy.Api.Middlewares;
 using EShopy.Application.Common.Context;
 using EShopy.Application.Products;
 using EShopy.Infrastructure;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Controllers + Swagger
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+  options.SwaggerDoc("v1", new OpenApiInfo
+  {
+    Title = "EShopy API",
+    Version = "v1"
+  });
+
+  var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+  var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+  if (File.Exists(xmlPath))
+    options.IncludeXmlComments(xmlPath);
+});
 
 // Contexts
 builder.Services.AddScoped<TenantContext>();

@@ -5,9 +5,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace EShopy.Api.Controllers.Public;
 
+/// <summary>Endpoints públicos del catálogo.</summary>
 [Route("api/public/products")]
 public sealed class ProductsController(IProductService service) : BaseController
 {
+  /// <summary>Lista productos públicos activos con paginación.</summary>
   [HttpGet]
   [ProducesResponseType(typeof(PagedResult<ProductPublicDto>), StatusCodes.Status200OK)]
   public async Task<ActionResult<PagedResult<ProductPublicDto>>> Get([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
@@ -16,6 +18,7 @@ public sealed class ProductsController(IProductService service) : BaseController
     return Ok(result);
   }
 
+  /// <summary>Obtiene el detalle público por slug.</summary>
   [HttpGet("{slug}")]
   [ProducesResponseType(typeof(ProductPublicDto), StatusCodes.Status200OK)]
   public async Task<ActionResult<ProductPublicDto>> GetBySlug(string slug, CancellationToken ct)
