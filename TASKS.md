@@ -52,6 +52,12 @@ Objetivo: dejar contexto operativo, decisiones y próximos pasos de manera conci
 - Siempre agregar `<summary>` en controllers y actions.
 - Mantener XML docs habilitado para Swagger (`GenerateDocumentationFile=true` + `IncludeXmlComments`).
 
+## Seguridad (Keycloak)
+- Login se realiza en Keycloak (no hay endpoint de login en backend).
+- Backend valida JWT Bearer (OIDC) y usa policies por módulo.
+- Permissions claim: `permissions` (roles mapeados a permisos).
+- Cliente dev para Postman: `eshopy-postman` (secret `postman-secret`).
+
 ## EF Core / DB
 - DB dev: `EShopy.Dev` en `localhost\\SQLEXPRESS`.
 - Usar EF Core con SQL Server.
