@@ -6,6 +6,75 @@
   },
   "item": [
     {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Get Access Token (Keycloak)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{kc_client_id}}"
+                },
+                {
+                  "key": "client_secret",
+                  "value": "{{kc_client_secret}}"
+                },
+                {
+                  "key": "username",
+                  "value": "{{kc_username}}"
+                },
+                {
+                  "key": "password",
+                  "value": "{{kc_password}}"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{kc_base_url}}/realms/{{kc_realm}}/protocol/openid-connect/token",
+              "host": [
+                "{{kc_base_url}}"
+              ],
+              "path": [
+                "realms",
+                "{{kc_realm}}",
+                "protocol",
+                "openid-connect",
+                "token"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.access_token) {",
+                  "  pm.environment.set('adminToken', json.access_token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Overview",
       "description": "Variables sugeridas: baseUrl, adminToken, cartToken.\n- baseUrl: http(s)://{subdomain}.tu-dominio.com/api\n- adminToken: Bearer JWT de Keycloak\n- cartToken: token de carrito anonimo\n\nConvenciones:\n- JSON UTF-8\n- Fechas ISO 8601 UTC\n- CorrelationId opcional en X-Correlation-Id",
       "item": []

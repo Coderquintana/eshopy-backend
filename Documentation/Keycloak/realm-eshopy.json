@@ -1,0 +1,159 @@
+{
+  "realm": "eshopy",
+  "enabled": true,
+  "displayName": "EShopy",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "rememberMe": true,
+  "users": [
+    {
+      "username": "admin@eshopy.local",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "EShopy",
+      "email": "admin@eshopy.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ESHOPY_SUPERADMIN",
+        "catalog.read",
+        "catalog.write",
+        "orders.read",
+        "orders.write",
+        "users.manage"
+      ]
+    }
+  ],
+  "roles": {
+    "realm": [
+      { "name": "ESHOPY_SUPERADMIN", "description": "Administracion global del SaaS." },
+      { "name": "TENANT_OWNER", "description": "Propietario del tenant." },
+      { "name": "TENANT_ADMIN", "description": "Admin del tenant." },
+      { "name": "TENANT_STAFF", "description": "Staff del tenant." },
+      { "name": "catalog.read", "description": "Permiso: leer catalogo." },
+      { "name": "catalog.write", "description": "Permiso: escribir catalogo." },
+      { "name": "orders.read", "description": "Permiso: leer pedidos." },
+      { "name": "orders.write", "description": "Permiso: escribir pedidos." },
+      { "name": "users.manage", "description": "Permiso: administrar usuarios." }
+    ]
+  },
+  "defaultRoles": [
+    "TENANT_ADMIN",
+    "catalog.read"
+  ],
+  "clients": [
+    {
+      "clientId": "eshopy-admin",
+      "name": "EShopy Admin (SPA)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": true,
+      "protocol": "openid-connect",
+      "redirectUris": [
+        "http://localhost:4200/*",
+        "http://*.eshopy.local/*",
+        "https://*.eshopy.local/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4200",
+        "http://*.eshopy.local",
+        "https://*.eshopy.local"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:4200/*##http://*.eshopy.local/*##https://*.eshopy.local/*"
+      }
+    },
+    {
+      "clientId": "eshopy-postman",
+      "name": "EShopy Postman (Dev)",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "postman-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "eshopy-api",
+      "name": "EShopy API",
+      "enabled": true,
+      "bearerOnly": true,
+      "protocol": "openid-connect"
+    }
+  ],
+  "clientScopes": [
+    {
+      "name": "roles",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "realm-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "user.attribute": "foo",
+            "claim.name": "roles",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "permissions",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "realm-permissions",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "user.attribute": "foo",
+            "claim.name": "permissions",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "defaultDefaultClientScopes": [
+    "profile",
+    "email",
+    "roles",
+    "permissions"
+  ]
+}
