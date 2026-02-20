@@ -1,9 +1,10 @@
+using EShopy.Domain.Common.Entities;
 using EShopy.Domain.Common.Errors;
 using EShopy.Domain.Common.Exceptions;
 
 namespace EShopy.Domain.Products;
 
-public sealed class Product
+public sealed class Product : AppEntity
 {
   private Product(Guid id,
     Guid tenantId,
@@ -16,10 +17,9 @@ public sealed class Product
     ProductStatus status,
     int stockOnHand,
     DateTime createdAtUtc,
-    DateTime updatedAtUtc)
+    DateTime? updatedAtUtc)
+    : base(id, tenantId, createdAtUtc, createdBy: null, updatedAtUtc, updatedBy: null, data: null)
   {
-    Id = id;
-    TenantId = tenantId;
     Slug = slug;
     Sku = sku;
     Name = name;
@@ -28,12 +28,8 @@ public sealed class Product
     CurrencyCode = currencyCode;
     Status = status;
     StockOnHand = stockOnHand;
-    CreatedAtUtc = createdAtUtc;
-    UpdatedAtUtc = updatedAtUtc;
   }
 
-  public Guid Id { get; }
-  public Guid TenantId { get; }
   public string Slug { get; private set; }
   public string? Sku { get; private set; }
   public string Name { get; private set; }
@@ -42,8 +38,13 @@ public sealed class Product
   public string CurrencyCode { get; private set; }
   public ProductStatus Status { get; private set; }
   public int StockOnHand { get; private set; }
-  public DateTime CreatedAtUtc { get; }
-  public DateTime UpdatedAtUtc { get; private set; }
+
+  public ProductData? DataJson => GetData<ProductData>();
+
+  public void SetData(ProductData data)
+  {
+    SetData<ProductData>(data);
+  }
 
   public static Product Create(Guid tenantId,
     string slug,
