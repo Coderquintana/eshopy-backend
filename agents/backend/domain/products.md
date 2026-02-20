@@ -125,9 +125,9 @@ var data = product.DataJson; // ProductData?
 
 | Archivo | Descripción |
 |---|---|
-| [EShopy.Domain/Products/Product.cs](../../EShopy.Domain/Products/Product.cs) | Aggregate root |
-| [EShopy.Domain/Products/ProductData.cs](../../EShopy.Domain/Products/ProductData.cs) | JSON data record |
-| [EShopy.Application/Products/ProductService.cs](../../EShopy.Application/Products/ProductService.cs) | Servicio (pendiente refactor) |
-| [EShopy.Infrastructure/Products/EfProductRepository.cs](../../EShopy.Infrastructure/Products/EfProductRepository.cs) | Repositorio EF |
-| [EShopy.Api/Controllers/Admin/ProductsController.cs](../../EShopy.Api/Controllers/Admin/ProductsController.cs) | Controller admin |
-| [EShopy.Api/Controllers/Public/ProductsController.cs](../../EShopy.Api/Controllers/Public/ProductsController.cs) | Controller público |
+| [EShopy.Domain/Products/Product.cs](../../../EShopy.Domain/Products/Product.cs) | Aggregate root |
+| [EShopy.Domain/Products/ProductData.cs](../../../EShopy.Domain/Products/ProductData.cs) | JSON data record |
+| [EShopy.Application/Products/ProductService.cs](../../../EShopy.Application/Products/ProductService.cs) | Servicio (pendiente refactor) |
+| [EShopy.Infrastructure/Products/EfProductRepository.cs](../../../EShopy.Infrastructure/Products/EfProductRepository.cs) | Repositorio EF |
+| [EShopy.Api/Controllers/Admin/ProductsController.cs](../../../EShopy.Api/Controllers/Admin/ProductsController.cs) | Controller admin |
+| [EShopy.Api/Controllers/Public/ProductsController.cs](../../../EShopy.Api/Controllers/Public/ProductsController.cs) | Controller público |

@@ -148,8 +148,8 @@ Métodos: `GET, POST, PUT, PATCH, DELETE, OPTIONS`
 
 | Archivo | Descripción |
 |---|---|
-| [EShopy.Api/Program.cs](../../EShopy.Api/Program.cs) | DI, pipeline, auth, Swagger |
-| [EShopy.Api/Controllers/BaseApiController.cs](../../EShopy.Api/Controllers/BaseApiController.cs) | Base controller con helpers |
-| [EShopy.Domain/Common/Result.cs](../../EShopy.Domain/Common/Result.cs) | Patrón Result<T> |
-| [EShopy.Domain/Common/Errors/ErrorCodes.cs](../../EShopy.Domain/Common/Errors/ErrorCodes.cs) | Códigos de error canónicos |
-| [EShopy.Infrastructure/DependencyInjection.cs](../../EShopy.Infrastructure/DependencyInjection.cs) | DI de infraestructura |
+| [EShopy.Api/Program.cs](../../../EShopy.Api/Program.cs) | DI, pipeline, auth, Swagger |
+| [EShopy.Api/Controllers/BaseApiController.cs](../../../EShopy.Api/Controllers/BaseApiController.cs) | Base controller con helpers |
+| [EShopy.Domain/Common/Result.cs](../../../EShopy.Domain/Common/Result.cs) | Patrón Result<T> |
+| [EShopy.Domain/Common/Errors/ErrorCodes.cs](../../../EShopy.Domain/Common/Errors/ErrorCodes.cs) | Códigos de error canónicos |
+| [EShopy.Infrastructure/DependencyInjection.cs](../../../EShopy.Infrastructure/DependencyInjection.cs) | DI de infraestructura |
