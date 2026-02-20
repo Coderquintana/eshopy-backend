@@ -1,13 +1,15 @@
 using EShopy.Application.Common.Contracts.Paging;
 using EShopy.Application.Products;
 using EShopy.Application.Products.Contracts;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EShopy.Api.Controllers.Public;
 
 /// <summary>Endpoints públicos del catálogo.</summary>
+[AllowAnonymous]
 [Route("api/public/products")]
-public sealed class ProductsController(IProductService service) : BaseController
+public sealed class ProductsController(IProductService service) : BaseApiController
 {
   /// <summary>Lista productos públicos activos con paginación.</summary>
   [HttpGet]

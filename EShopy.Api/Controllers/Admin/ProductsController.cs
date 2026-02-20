@@ -2,16 +2,18 @@ using EShopy.Application.Common.Contracts.Paging;
 using EShopy.Application.Products;
 using EShopy.Application.Products.Contracts;
 using EShopy.Application.Products.Requests;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EShopy.Api.Controllers.Admin;
 
 /// <summary>Endpoints administrativos para el catálogo de productos.</summary>
 [Route("api/products")]
-public sealed class ProductsController(IProductService service) : BaseController
+public sealed class ProductsController(IProductService service) : BaseApiController
 {
   /// <summary>Crea un producto en estado Draft.</summary>
   [HttpPost]
+  [Authorize(Policy = "CatalogWrite")]
   [ProducesResponseType(typeof(ProductAdminDto), StatusCodes.Status201Created)]
   public async Task<ActionResult<ProductAdminDto>> Create([FromBody] CreateProductRequest request, CancellationToken ct)
   {
@@ -21,6 +23,7 @@ public sealed class ProductsController(IProductService service) : BaseController
 
   /// <summary>Lista productos (admin) con paginación.</summary>
   [HttpGet]
+  [Authorize(Policy = "CatalogWrite")]
   [ProducesResponseType(typeof(PagedResult<ProductAdminDto>), StatusCodes.Status200OK)]
   public async Task<ActionResult<PagedResult<ProductAdminDto>>> Get([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
   {
@@ -30,6 +33,7 @@ public sealed class ProductsController(IProductService service) : BaseController
 
   /// <summary>Obtiene el detalle de un producto por id.</summary>
   [HttpGet("{id:guid}")]
+  [Authorize(Policy = "CatalogWrite")]
   [ProducesResponseType(typeof(ProductAdminDto), StatusCodes.Status200OK)]
   public async Task<ActionResult<ProductAdminDto>> GetById(Guid id, CancellationToken ct)
   {
@@ -39,6 +43,7 @@ public sealed class ProductsController(IProductService service) : BaseController
 
   /// <summary>Actualiza campos editables de un producto.</summary>
   [HttpPut("{id:guid}")]
+  [Authorize(Policy = "CatalogWrite")]
   [ProducesResponseType(typeof(ProductAdminDto), StatusCodes.Status200OK)]
   public async Task<ActionResult<ProductAdminDto>> Update(Guid id, [FromBody] UpdateProductRequest request, CancellationToken ct)
   {
@@ -48,6 +53,7 @@ public sealed class ProductsController(IProductService service) : BaseController
 
   /// <summary>Cambia el estado del producto (Draft/Active/Archived).</summary>
   [HttpPatch("{id:guid}/status")]
+  [Authorize(Policy = "CatalogWrite")]
   [ProducesResponseType(typeof(ProductAdminDto), StatusCodes.Status200OK)]
   public async Task<ActionResult<ProductAdminDto>> ChangeStatus(Guid id, [FromBody] ChangeProductStatusRequest request, CancellationToken ct)
   {

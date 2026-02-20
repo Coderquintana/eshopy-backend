@@ -1,10 +1,12 @@
 using EShopy.Application.Common.Context;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EShopy.Api.Controllers.Public;
 
+[AllowAnonymous]
 [Route("api/store")]
-public sealed class StoreController(TenantContext tenant) : BaseController
+public sealed class StoreController(TenantContext tenant) : BaseApiController
 {
   [HttpGet]
   [ProducesResponseType(typeof(StorePublicDto), StatusCodes.Status200OK)]
