@@ -9,74 +9,147 @@
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
   "rememberMe": true,
-  "users": [
-    {
-      "username": "admin@eshopy.local",
-      "enabled": true,
-      "emailVerified": true,
-      "firstName": "Admin",
-      "lastName": "EShopy",
-      "email": "admin@eshopy.local",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "Admin123!",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "ESHOPY_SUPERADMIN",
-        "catalog.read",
-        "catalog.write",
-        "orders.read",
-        "orders.write",
-        "users.manage"
-      ]
-    }
-  ],
   "roles": {
     "realm": [
       { "name": "ESHOPY_SUPERADMIN", "description": "Administracion global del SaaS." },
       { "name": "TENANT_OWNER", "description": "Propietario del tenant." },
-      { "name": "TENANT_ADMIN", "description": "Admin del tenant." },
-      { "name": "TENANT_STAFF", "description": "Staff del tenant." },
+      { "name": "TENANT_ADMIN", "description": "Administrador del tenant." },
+      { "name": "TENANT_STAFF", "description": "Staff operativo del tenant." },
+      { "name": "tenants.read", "description": "Permiso: leer tenants." },
+      { "name": "tenants.write", "description": "Permiso: modificar tenants." },
+      { "name": "store.read", "description": "Permiso: leer configuracion de tienda." },
+      { "name": "store.write", "description": "Permiso: modificar configuracion de tienda." },
       { "name": "catalog.read", "description": "Permiso: leer catalogo." },
-      { "name": "catalog.write", "description": "Permiso: escribir catalogo." },
+      { "name": "catalog.write", "description": "Permiso: modificar catalogo." },
       { "name": "orders.read", "description": "Permiso: leer pedidos." },
-      { "name": "orders.write", "description": "Permiso: escribir pedidos." },
-      { "name": "users.manage", "description": "Permiso: administrar usuarios." }
+      { "name": "orders.write", "description": "Permiso: modificar pedidos." },
+      { "name": "payments.read", "description": "Permiso: leer pagos." },
+      { "name": "users.manage", "description": "Permiso: administrar usuarios." },
+      { "name": "billing.manage", "description": "Permiso: administrar billing." }
     ]
   },
   "defaultRoles": [
-    "TENANT_ADMIN",
-    "catalog.read"
+    "TENANT_STAFF",
+    "store.read",
+    "catalog.read",
+    "orders.read"
+  ],
+  "users": [
+    {
+      "username": "superadmin@eshopy.local",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Super",
+      "lastName": "Admin",
+      "email": "superadmin@eshopy.local",
+      "credentials": [
+        { "type": "password", "value": "Admin123!", "temporary": false }
+      ],
+      "realmRoles": [
+        "ESHOPY_SUPERADMIN",
+        "TENANT_OWNER",
+        "TENANT_ADMIN",
+        "TENANT_STAFF",
+        "tenants.read",
+        "tenants.write",
+        "store.read",
+        "store.write",
+        "catalog.read",
+        "catalog.write",
+        "orders.read",
+        "orders.write",
+        "payments.read",
+        "users.manage",
+        "billing.manage"
+      ]
+    },
+    {
+      "username": "owner@tenant1.local",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Tenant",
+      "lastName": "Owner",
+      "email": "owner@tenant1.local",
+      "credentials": [
+        { "type": "password", "value": "Admin123!", "temporary": false }
+      ],
+      "realmRoles": [
+        "TENANT_OWNER",
+        "store.read",
+        "store.write",
+        "catalog.read",
+        "catalog.write",
+        "orders.read",
+        "orders.write",
+        "payments.read",
+        "users.manage",
+        "billing.manage"
+      ]
+    },
+    {
+      "username": "admin@tenant1.local",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Tenant",
+      "lastName": "Admin",
+      "email": "admin@tenant1.local",
+      "credentials": [
+        { "type": "password", "value": "Admin123!", "temporary": false }
+      ],
+      "realmRoles": [
+        "TENANT_ADMIN",
+        "store.read",
+        "catalog.read",
+        "catalog.write",
+        "orders.read",
+        "orders.write",
+        "payments.read"
+      ]
+    },
+    {
+      "username": "staff@tenant1.local",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Tenant",
+      "lastName": "Staff",
+      "email": "staff@tenant1.local",
+      "credentials": [
+        { "type": "password", "value": "Admin123!", "temporary": false }
+      ],
+      "realmRoles": [
+        "TENANT_STAFF",
+        "store.read",
+        "catalog.read",
+        "orders.read"
+      ]
+    }
   ],
   "clients": [
     {
-      "clientId": "eshopy-admin",
-      "name": "EShopy Admin (SPA)",
+      "clientId": "eshopy-api",
+      "name": "EShopy API",
       "enabled": true,
-      "publicClient": true,
+      "publicClient": false,
+      "secret": "eshopy-api-secret",
+      "protocol": "openid-connect",
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
-      "serviceAccountsEnabled": false,
-      "frontchannelLogout": true,
-      "protocol": "openid-connect",
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
       "redirectUris": [
         "http://localhost:4200/*",
-        "http://*.eshopy.local/*",
-        "https://*.eshopy.local/*"
+        "http://localhost:5000/*"
       ],
       "webOrigins": [
         "http://localhost:4200",
-        "http://*.eshopy.local",
-        "https://*.eshopy.local"
+        "http://localhost:5000"
       ],
-      "attributes": {
-        "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:4200/*##http://*.eshopy.local/*##https://*.eshopy.local/*"
-      }
+      "defaultClientScopes": [
+        "profile",
+        "email",
+        "roles",
+        "permissions"
+      ]
     },
     {
       "clientId": "eshopy-postman",
@@ -84,18 +157,30 @@
       "enabled": true,
       "publicClient": false,
       "secret": "postman-secret",
+      "protocol": "openid-connect",
       "standardFlowEnabled": false,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": true,
-      "serviceAccountsEnabled": false,
-      "protocol": "openid-connect"
+      "serviceAccountsEnabled": false
     },
     {
-      "clientId": "eshopy-api",
-      "name": "EShopy API",
+      "clientId": "eshopy-admin",
+      "name": "EShopy Admin (SPA)",
       "enabled": true,
-      "bearerOnly": true,
-      "protocol": "openid-connect"
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:4200/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4200"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
     }
   ],
   "clientScopes": [
@@ -114,7 +199,6 @@
           "consentRequired": false,
           "config": {
             "multivalued": "true",
-            "user.attribute": "foo",
             "claim.name": "roles",
             "jsonType.label": "String",
             "id.token.claim": "true",
@@ -139,7 +223,6 @@
           "consentRequired": false,
           "config": {
             "multivalued": "true",
-            "user.attribute": "foo",
             "claim.name": "permissions",
             "jsonType.label": "String",
             "id.token.claim": "true",

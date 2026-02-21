@@ -1,17 +1,13 @@
-using System.Security.Claims;
 using EShopy.Application.Common.Context;
+using EShopy.Infrastructure.Identity;
 
 namespace EShopy.Api.Middlewares;
 
 public sealed class RequestLoggingScopeMiddleware(RequestDelegate next)
 {
-  public async Task Invoke(HttpContext ctx, TenantContext tenant, UserContext user, ILogger<RequestLoggingScopeMiddleware> log)
+  public async Task Invoke(HttpContext ctx, TenantContext tenant, UserContextAccessor userContextAccessor, ILogger<RequestLoggingScopeMiddleware> log)
   {
-    // Mapear usuario desde claims (si existe)
-    var userId = ctx.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? ctx.User.FindFirstValue("sub");
-    var email = ctx.User.FindFirstValue(ClaimTypes.Email) ?? ctx.User.FindFirstValue("email");
-    var roles = ctx.User.FindAll(ClaimTypes.Role).Select(x => x.Value).ToArray();
-    user.Set(userId, email, roles);
+    var user = userContextAccessor.GetUserContext();
 
     var correlationId = ctx.Items.TryGetValue("X-Correlation-Id", out var cidObj) ? cidObj?.ToString() : null;
 
@@ -21,6 +17,9 @@ public sealed class RequestLoggingScopeMiddleware(RequestDelegate next)
       ["Subdomain"] = tenant.Subdomain,
       ["UserId"] = user.UserId,
       ["UserEmail"] = user.Email,
+      ["UserDisplayName"] = user.DisplayName,
+      ["UserRoles"] = string.Join(",", user.Roles),
+      ["UserPermissions"] = string.Join(",", user.Permissions),
       ["CorrelationId"] = correlationId,
       ["TraceId"] = ctx.TraceIdentifier,
       ["RequestPath"] = ctx.Request.Path.ToString(),

@@ -3,17 +3,18 @@ using EShopy.Application.Common.Contracts.Paging;
 using EShopy.Application.Products.Commands;
 using EShopy.Application.Products.Contracts;
 using EShopy.Domain.Products;
+using EShopy.Tests.Integration.Support;
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc.Testing;
+using System.Net.Http.Headers;
 using Xunit;
 
 namespace EShopy.Tests.Integration.Smoke;
 
-public sealed class ProductsEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class ProductsEndpointsTests : IClassFixture<SecurityWebApplicationFactory>
 {
-  private readonly WebApplicationFactory<Program> _factory;
+  private readonly SecurityWebApplicationFactory _factory;
 
-  public ProductsEndpointsTests(WebApplicationFactory<Program> factory)
+  public ProductsEndpointsTests(SecurityWebApplicationFactory factory)
   {
     _factory = factory;
   }
@@ -22,6 +23,10 @@ public sealed class ProductsEndpointsTests : IClassFixture<WebApplicationFactory
   public async Task ProductsFlow_ShouldCreateAndExposePublicProduct()
   {
     var client = _factory.CreateClient();
+    var token = TestJwtTokenFactory.CreateToken(
+      permissions: ["catalog.read", "catalog.write"],
+      roles: ["TENANT_ADMIN"]);
+    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
     var createCommand = new CreateProductCommand(
       Slug: "coffee-mug",
