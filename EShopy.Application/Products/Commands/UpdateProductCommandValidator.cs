@@ -1,11 +1,10 @@
 using FluentValidation;
-using EShopy.Application.Products.Requests;
 
-namespace EShopy.Application.Products.Validation;
+namespace EShopy.Application.Products.Commands;
 
-public sealed class UpdateProductRequestValidator : AbstractValidator<UpdateProductRequest>
+public sealed class UpdateProductCommandValidator : AbstractValidator<UpdateProductCommand>
 {
-  public UpdateProductRequestValidator()
+  public UpdateProductCommandValidator()
   {
     RuleFor(x => x.Name)
       .NotEmpty()
@@ -17,6 +16,11 @@ public sealed class UpdateProductRequestValidator : AbstractValidator<UpdateProd
       .MaximumLength(64)
       .WithMessage("El SKU del producto no puede exceder 64 caracteres.")
       .When(x => !string.IsNullOrWhiteSpace(x.Sku));
+
+    RuleFor(x => x.Description)
+      .MaximumLength(5000)
+      .WithMessage("La descripción no puede exceder 5000 caracteres.")
+      .When(x => !string.IsNullOrWhiteSpace(x.Description));
 
     RuleFor(x => x.Price)
       .GreaterThanOrEqualTo(0)

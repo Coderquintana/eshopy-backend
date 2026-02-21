@@ -7,8 +7,25 @@ namespace EShopy.Api.Middlewares;
 
 public sealed class TenantResolutionMiddleware(RequestDelegate next)
 {
+  // Rutas que no requieren tenant (sin subdominio comercial)
+  private static readonly string[] ExcludedPrefixes =
+  [
+    "/health",
+    "/swagger",
+    "/api/onboarding/tenants",
+    "/api/payments/webhooks"
+  ];
+
   public async Task Invoke(HttpContext ctx, TenantContext tenantContext, ITenantResolver tenantResolver, ILogger<TenantResolutionMiddleware> log)
   {
+    // Omitir resolución de tenant para rutas excluidas
+    var path = ctx.Request.Path.Value ?? "";
+    if (IsExcluded(path))
+    {
+      await next(ctx);
+      return;
+    }
+
     var host = ctx.Request.Host.Host ?? "";
     var subdomain = ExtractSubdomain(host);
 
@@ -22,6 +39,16 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next)
     tenantContext.Set(tenantId.Value, subdomain);
 
     await next(ctx);
+  }
+
+  private static bool IsExcluded(string path)
+  {
+    foreach (var prefix in ExcludedPrefixes)
+    {
+      if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        return true;
+    }
+    return false;
   }
 
   private static string ExtractSubdomain(string host)

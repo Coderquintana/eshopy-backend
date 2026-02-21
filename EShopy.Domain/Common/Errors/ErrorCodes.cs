@@ -9,4 +9,8 @@ public static class ErrorCodes
   public const string NotFound = "NOT_FOUND";
   public const string Conflict = "CONFLICT";
   public const string GenericError = "GENERIC_ERROR";
+
+  // Catalog / Products
+  public const string ProductNotAvailable = "PRODUCT_NOT_AVAILABLE";
+  public const string ProductInvalidState = "PRODUCT_INVALID_STATE";
 }

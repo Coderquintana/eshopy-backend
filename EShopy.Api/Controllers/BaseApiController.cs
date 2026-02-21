@@ -1,4 +1,7 @@
 using System.Security.Claims;
+using EShopy.Api.Common.Http;
+using EShopy.Domain.Common.Errors;
+using EShopy.Domain.Common.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,6 +11,37 @@ namespace EShopy.Api.Controllers;
 [Authorize]
 public abstract class BaseApiController : ControllerBase
 {
+  /// <summary>
+  /// Convierte un Result&lt;T&gt; de la capa de aplicación en el ActionResult HTTP correspondiente.
+  /// Mapea Result.Code al código de estado HTTP correcto.
+  /// </summary>
+  [NonAction]
+  protected ActionResult<T> FromResult<T>(Result<T> result)
+  {
+    if (result.IsSuccess)
+      return Ok(result.Value);
+
+    var error = new ErrorResponse
+    {
+      TraceId = HttpContext.TraceIdentifier,
+      Code = result.Code!,
+      Message = result.Message!
+    };
+
+    return result.Code switch
+    {
+      ErrorCodes.NotFound => NotFound(error),
+      ErrorCodes.Conflict => Conflict(error),
+      ErrorCodes.ValidationError => BadRequest(error),
+      ErrorCodes.Unauthorized => Unauthorized(error),
+      ErrorCodes.Forbidden => Forbid(),
+      ErrorCodes.TenantNotFound => NotFound(error),
+      ErrorCodes.ProductInvalidState => Conflict(error),
+      ErrorCodes.ProductNotAvailable => Conflict(error),
+      _ => StatusCode(StatusCodes.Status500InternalServerError, error)
+    };
+  }
+
   [NonAction]
   protected string GetCorrelationId()
     => HttpContext.Items.TryGetValue("X-Correlation-Id", out var v) ? v?.ToString() ?? "" : "";

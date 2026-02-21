@@ -1,6 +1,6 @@
 # CURRENT_STATE — Estado actual del código
 
-> Snapshot al 2026-02-19. Refleja el código real, no la documentación ideal.
+> Snapshot al 2026-02-20. Refleja el código real, no la documentación ideal.
 
 ---
 
@@ -8,11 +8,11 @@
 
 | Módulo | Estado | Notas |
 |---|---|---|
-| **Core / Infraestructura base** | ✅ Implementado | Middleware, BaseController, ErrorResponse, Result<T> |
-| **Auth (Keycloak/JWT)** | ✅ Configurado | JWT Bearer + policies en Program.cs. Keycloak no testeado contra backend real |
-| **Products (Catalog)** | ⚠️ Parcial | Domain + API + Repository OK. Ver deuda técnica abajo |
+| **Core / Infraestructura base** | ✅ Implementado | Middleware, BaseApiController, ErrorResponse, Result<T>, Global Query Filter |
+| **Auth (Keycloak/JWT)** | ✅ Configurado | JWT Bearer + políticas CatalogRead/CatalogWrite/OrdersRead/OrdersWrite/UsersManage |
+| **Products (Catalog)** | ✅ Completo (MVP) | CQRS + Result<T> + SQL pagination + StoreId + transiciones validadas |
+| **Store (abstracción)** | ⚠️ Placeholder | IStoreService + InMemoryStoreService retorna PYG fijo |
 | **Tenants** | ❌ Pendiente | Solo InMemoryTenantResolver placeholder |
-| **Store** | ❌ Skeleton | StoreController devuelve datos hardcodeados |
 | **Carts** | ❌ No iniciado | Fase 6 |
 | **Orders** | ❌ No iniciado | Fase 7 |
 | **Payments** | ❌ No iniciado | Fase 8 |
@@ -20,105 +20,144 @@
 
 ---
 
-## Implementación real del módulo Products
-
-### Lo que está implementado y funciona
+## Módulo Products — estructura CQRS implementada
 
 ```
 EShopy.Domain/Products/
-  Product.cs              ← Aggregate root. Create(), UpdateDetails(), ChangeStatus()
+  Product.cs              ← StoreId ✅, ChangeStatus con validación de transiciones ✅
   ProductData.cs          ← record para columna Data JSON
-  ProductStatus.cs        ← enum: Draft(0), Active(1), Archived(2)
+  ProductStatus.cs        ← enum : byte { Draft=0, Active=1, Archived=2 }
+
+EShopy.Domain/Common/
+  Results/Result.cs       ← Result<T> y Result sin genérico
+  Errors/ErrorCodes.cs    ← incluye PRODUCT_NOT_AVAILABLE, PRODUCT_INVALID_STATE
 
 EShopy.Application/Products/
-  IProductRepository.cs   ← contrato repo
-  IProductService.cs      ← contrato servicio
-  ProductService.cs       ← implementación (PENDIENTE refactor a Result<T>)
+  IProductRepository.cs   ← GetAdminPagedAsync / GetPublicPagedAsync con PagedQuery
+  ProductMappings.cs      ← ToAdminDto() / ToPublicDto() compartido
+  Commands/
+    CreateProductCommand.cs + Handler + Validator    ← retorna Result<ProductAdminDto>
+    UpdateProductCommand.cs + Handler + Validator
+    ChangeProductStatusCommand.cs + Handler + Validator
+  Queries/
+    GetProductsQuery.cs + Handler                    ← retorna Result<PagedResult<ProductAdminDto>>
+    GetProductByIdQuery.cs + Handler
+    GetPublicProductsQuery.cs + Handler              ← retorna Result<PagedResult<ProductPublicDto>>
+    GetProductBySlugQuery.cs + Handler               ← solo productos Active
   Contracts/
-    ProductAdminDto.cs    ← DTO admin (Id, Slug, Sku, Name, Price, Stock, Status, fechas)
-    ProductPublicDto.cs   ← DTO público (Id, Slug, Name, Description, Price, Currency)
-  Requests/
-    CreateProductRequest.cs
-    UpdateProductRequest.cs
-    ChangeProductStatusRequest.cs
+    ProductAdminDto.cs
+    ProductPublicDto.cs
+    PagedQuery.cs          ← record PagedQuery(int Page=1, int PageSize=20)
+
+EShopy.Application/Common/
+  Stores/IStoreService.cs ← GetDefaultStoreAsync(tenantId) → StoreDto?
+  Stores/StoreDto.cs      ← record StoreDto(Guid Id, string CurrencyCode)
+  Context/TenantContext.cs
+  Context/UserContext.cs
 
 EShopy.Infrastructure/Products/
-  EfProductRepository.cs  ← EF Core real (IMPLEMENTADO)
-  InMemoryProductRepository.cs ← fallback (aún existe, no en DI activa)
+  EfProductRepository.cs  ← SQL pagination con SKIP/TAKE + LongCountAsync
+
+EShopy.Infrastructure/Stores/
+  InMemoryStoreService.cs ← placeholder: StoreId=11111111..., CurrencyCode="PYG"
 
 EShopy.Infrastructure/Persistence/
-  EShopyDbContext.cs      ← DbContext con DbSet<Product>
+  EShopyDbContext.cs       ← Global Query Filter por TenantId ✅
+  EShopyDbContextFactory.cs ← IDesignTimeDbContextFactory para migrations
   Configurations/
-    ProductConfiguration.cs ← EF mapping con índices y HasComment
+    ProductConfiguration.cs ← StoreId ✅, Description HasMaxLength(5000) ✅
 
 EShopy.Api/Controllers/
-  Admin/ProductsController.cs   ← [Authorize(Policy="CatalogWrite")] en cada action
-  Public/ProductsController.cs  ← [AllowAnonymous]
+  BaseApiController.cs         ← FromResult<T>() mapea Result→ActionResult ✅
+  Admin/ProductsController.cs  ← thin CQRS, GET=[CatalogRead], POST/PUT/PATCH=[CatalogWrite]
+  Public/ProductsController.cs ← thin CQRS, [AllowAnonymous]
+
+EShopy.Api/Middlewares/
+  TenantResolutionMiddleware.cs ← excluye /health, /swagger, /api/onboarding/tenants, /api/payments/webhooks
+  GlobalExceptionMiddleware.cs  ← incluye PRODUCT_INVALID_STATE→409, catch-all→500 ✅
 ```
 
-### Lo que NO está implementado (deuda técnica activa)
+---
 
-| Item | Archivo(s) afectado(s) | Consecuencia actual |
+## Tests — estado actual
+
+| Suite | Tests | Estado |
 |---|---|---|
-| **Result<T> en Application** | `ProductService.cs` | Lanza excepciones; `GlobalExceptionMiddleware` las captura, pero rompe el patrón |
-| **StoreId en Product** | `Product.cs`, `ProductConfiguration.cs`, migración | FK obligatoria según GOVERNANCE aún ausente |
-| **Paginación en SQL** | `EfProductRepository.cs` líneas ~30-40 | Carga todos los registros en memoria, luego pagina en servicio |
-| **CurrencyCode hardcodeado** | `ProductService.cs` | "PYG" literal; debe venir del Store |
-| **ProductService monolítico** | `ProductService.cs` | Commands y Queries mezclados; debe separarse en handlers |
-| **InMemoryTenantResolver** | `Infrastructure/Tenants/` | Siempre retorna 'localhost' como subdominio — no configurable |
-| **Global Query Filter** | `EShopyDbContext.cs` | Sin filtro automático de TenantId — aislamiento manual en cada query |
-| **Interceptor TenantId** | No existe aún | No impide SaveChanges sin TenantId |
-| **StoreController datos reales** | `StoreController.cs` | Retorna valores hardcodeados (Guid literal, "PYG", etc.) |
+| `EShopy.Tests.Unit` | 24 tests | ✅ Todos pasan |
+| `EShopy.Tests.Integration` | 1 test smoke | ⚠️ Requiere DB + auth real |
+
+### Tests unitarios de Products
+- `Product_Create_WithValidData_ShouldReturnDraftProduct`
+- `Product_Create_WithNegativePrice_ShouldThrowDomainException`
+- `Product_Create_WithNegativeStock_ShouldThrowDomainException`
+- `Product_Create_WithZeroPrice_ShouldSucceed`
+- `Product_Create_SlugShouldBeNormalized`
+- `Product_ChangeStatus_DraftToActive_ShouldSucceed`
+- `Product_ChangeStatus_ActiveToArchived_ShouldSucceed`
+- `Product_ChangeStatus_ArchivedToActive_ShouldSucceed`
+- `Product_ChangeStatus_DraftToArchived_ShouldThrowDomainException`
+- `Product_ChangeStatus_ActiveToDraft_ShouldThrowDomainException`
+- `Product_ChangeStatus_ArchivedToDraft_ShouldThrowDomainException`
+- `Product_ChangeStatus_SameStatus_ShouldBeIdempotent`
+- Validators: 10 casos (slug, regex, maxLength, precio, stock, enum)
 
 ---
 
-## Archivos clave y su estado
+## Deuda técnica activa
 
-| Archivo | Estado | Notas |
+| Item | Archivo(s) | Impacto |
 |---|---|---|
-| `EShopy.Api/Program.cs` | ✅ OK | Pipeline correcto, DI configurada |
-| `EShopy.Api/Controllers/Admin/ProductsController.cs` | ✅ OK | [Authorize] en todas las actions |
-| `EShopy.Api/Controllers/Public/ProductsController.cs` | ✅ OK | [AllowAnonymous] correcto |
-| `EShopy.Api/Controllers/Public/StoreController.cs` | ⚠️ Skeleton | Datos hardcodeados |
-| `EShopy.Domain/Products/Product.cs` | ⚠️ Incompleto | Falta `StoreId` |
-| `EShopy.Application/Products/ProductService.cs` | ⚠️ Refactor pendiente | Sin Result<T>, CurrencyCode hardcoded |
-| `EShopy.Infrastructure/Products/EfProductRepository.cs` | ⚠️ Parcial | Sin paginación SQL |
-| `EShopy.Infrastructure/Persistence/EShopyDbContext.cs` | ⚠️ Incompleto | Sin Global Query Filter |
+| **InMemoryTenantResolver** | `Infrastructure/Tenants/` | Siempre retorna 'localhost' — no configurable |
+| **InMemoryStoreService** | `Infrastructure/Stores/` | StoreId y CurrencyCode fijos; reemplazar con EfStoreService cuando exista tabla Stores |
+| **StoreController skeleton** | `Api/Controllers/StoreController.cs` | Datos hardcodeados |
+| **Sin tabla Stores** | `EShopyDbContext` | IStoreService no tiene backing real |
+| **Sin interceptor TenantId** | No existe | No impide SaveChanges sin TenantId |
+| **ProductImages** | No implementado | Pendiente módulo Images |
 
 ---
 
-## Próximo paso recomendado
-
-**Fase 5 — Refactor Catalog** (prerequisito: Fase 2 y 3 parciales):
-
-1. Agregar `StoreId` a `Product.cs` + `ProductConfiguration.cs` + nueva migración EF
-2. Refactorizar `ProductService` → Command/Query handlers con `Result<T>`
-3. Implementar paginación SQL en `EfProductRepository`
-4. Eliminar CurrencyCode hardcodeado (tomar del Store)
-5. Agregar Global Query Filter en `EShopyDbContext`
-
-Ver `BACKLOG.md` para el detalle completo de tareas por fase.
-
----
-
-## Migraciones EF Core (estado)
+## Migraciones EF Core
 
 | Migración | Fecha | Descripción |
 |---|---|---|
 | `20260207035710_InitialCreate` | 2026-02-07 | Schema inicial de Products |
 | `20260207042545_AddAppEntityBaseToProducts` | 2026-02-07 | Columnas AppEntity (auditoría, RowVersion, Data) |
+| `*_AddStoreIdToProducts` | 2026-02-20 | StoreId + Description HasMaxLength(5000) |
 
-**Pendiente:** migración para `StoreId` en Products + tablas Tenants, Stores, Orders, Carts, Payments, Subscriptions.
+**Pendiente:** tablas Tenants, Stores, Orders, Carts, Payments, Subscriptions.
+
+---
+
+## Patrones de referencia (copiar para nuevos módulos)
+
+El módulo Products es el módulo de referencia. Los demás módulos deben seguir su estructura:
+
+1. **Domain**: entidad sellada heredando `AppEntity`, `enum Status : byte`, validaciones con `DomainException`
+2. **Application**: CQRS con `Commands/` y `Queries/`, handlers retornan `Result<T>`, validators FluentValidation
+3. **Infrastructure**: `EfXxxRepository` con SQL pagination, registrado en `DependencyInjection.cs`
+4. **API**: controller thin, `FromResult()` en BaseApiController, `[Authorize(Policy=...)]` correctos
+
+---
+
+## Próximo paso recomendado
+
+**Fase 6 — Módulo Tenants + Store real:**
+
+1. Implementar tabla `Tenants` y `Stores` con migraciones
+2. Reemplazar `InMemoryTenantResolver` con `EfTenantResolver`
+3. Reemplazar `InMemoryStoreService` con `EfStoreService`
+4. Implementar `TenantCounters` para OrderNumber atómico
+
+Ver `BACKLOG.md` para el detalle completo.
 
 ---
 
 ## Configuración de desarrollo
 
 ```json
-// appsettings.json
 {
   "ConnectionStrings": {
-    "Default": "Server=localhost\\SQLEXPRESS;Database=EShopy.Dev;Trusted_Connection=True;TrustServerCertificate=True"
+    "DefaultConnection": "Server=lpc:localhost\\SQLEXPRESS;Database=EShopy.Dev;Trusted_Connection=True;TrustServerCertificate=True;"
   },
   "Auth": {
     "Authority": "http://localhost:8080/realms/eshopy",

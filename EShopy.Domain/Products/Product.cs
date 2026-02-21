@@ -8,6 +8,7 @@ public sealed class Product : AppEntity
 {
   private Product(Guid id,
     Guid tenantId,
+    Guid storeId,
     string slug,
     string? sku,
     string name,
@@ -20,6 +21,7 @@ public sealed class Product : AppEntity
     DateTime? updatedAtUtc)
     : base(id, tenantId, createdAtUtc, createdBy: null, updatedAtUtc, updatedBy: null, data: null)
   {
+    StoreId = storeId;
     Slug = slug;
     Sku = sku;
     Name = name;
@@ -30,6 +32,7 @@ public sealed class Product : AppEntity
     StockOnHand = stockOnHand;
   }
 
+  public Guid StoreId { get; private set; }
   public string Slug { get; private set; }
   public string? Sku { get; private set; }
   public string Name { get; private set; }
@@ -47,6 +50,7 @@ public sealed class Product : AppEntity
   }
 
   public static Product Create(Guid tenantId,
+    Guid storeId,
     string slug,
     string? sku,
     string name,
@@ -65,6 +69,7 @@ public sealed class Product : AppEntity
 
     return new Product(Guid.NewGuid(),
       tenantId,
+      storeId,
       normalizedSlug,
       normalizedSku,
       name.Trim(),
@@ -92,9 +97,32 @@ public sealed class Product : AppEntity
     UpdatedAtUtc = updatedAtUtc;
   }
 
-  public void ChangeStatus(ProductStatus status, DateTime updatedAtUtc)
+  /// <summary>Cambia el estado del producto validando las transiciones permitidas.</summary>
+  /// <remarks>
+  /// Transiciones válidas:
+  /// Draft → Active ✅ | Draft → Archived ❌
+  /// Active → Archived ✅ | Active → Draft ❌
+  /// Archived → Active ✅ | Archived → Draft ❌
+  /// </remarks>
+  public void ChangeStatus(ProductStatus newStatus, DateTime updatedAtUtc)
   {
-    Status = status;
+    if (Status == newStatus)
+      return;
+
+    var allowed = (Status, newStatus) switch
+    {
+      (ProductStatus.Draft, ProductStatus.Active) => true,
+      (ProductStatus.Active, ProductStatus.Archived) => true,
+      (ProductStatus.Archived, ProductStatus.Active) => true,
+      _ => false
+    };
+
+    if (!allowed)
+      throw new DomainException(
+        ErrorCodes.ProductInvalidState,
+        $"Transición de estado no permitida: {Status} → {newStatus}.");
+
+    Status = newStatus;
     UpdatedAtUtc = updatedAtUtc;
   }
 

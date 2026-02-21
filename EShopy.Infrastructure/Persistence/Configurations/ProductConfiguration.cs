@@ -23,6 +23,9 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
     builder.Property(p => p.TenantId)
       .HasComment("Identificador del tenant propietario.");
 
+    builder.Property(p => p.StoreId)
+      .HasComment("Store al que pertenece el producto (FK a Stores).");
+
     builder.Property(p => p.Sku)
       .HasMaxLength(64)
       .HasComment("SKU opcional del producto (normalizado a mayusculas).");
@@ -36,6 +39,7 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
       .HasComment("Nombre visible del producto.");
 
     builder.Property(p => p.Description)
+      .HasMaxLength(5000)
       .HasComment("Descripcion larga del producto.");
 
     builder.Property(p => p.Price)

@@ -1,6 +1,5 @@
 using EShopy.Api.Middlewares;
 using EShopy.Application.Common.Context;
-using EShopy.Application.Products;
 using EShopy.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -29,11 +28,10 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddScoped<TenantContext>();
 builder.Services.AddScoped<UserContext>();
 
-// Infrastructure (tenant resolver placeholder)
+// Infrastructure + handlers (CQRS)
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddScoped<IProductService, ProductService>();
 
-// Auth (Keycloak)
+// Auth — Keycloak OIDC / JWT Bearer
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
   .AddJwtBearer(options =>
   {
@@ -49,6 +47,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization(options =>
 {
+  options.AddPolicy("CatalogRead", policy =>
+    policy.RequireClaim("permissions", "catalog.read"));
+
   options.AddPolicy("CatalogWrite", policy =>
     policy.RequireClaim("permissions", "catalog.write"));
 
@@ -61,9 +62,6 @@ builder.Services.AddAuthorization(options =>
   options.AddPolicy("UsersManage", policy =>
     policy.RequireClaim("permissions", "users.manage"));
 });
-
-// Auth (Keycloak) - wiring placeholder:
-// Policies defined above.
 
 var app = builder.Build();
 

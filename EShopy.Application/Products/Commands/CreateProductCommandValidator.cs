@@ -1,17 +1,18 @@
 using FluentValidation;
-using EShopy.Application.Products.Requests;
 
-namespace EShopy.Application.Products.Validation;
+namespace EShopy.Application.Products.Commands;
 
-public sealed class CreateProductRequestValidator : AbstractValidator<CreateProductRequest>
+public sealed class CreateProductCommandValidator : AbstractValidator<CreateProductCommand>
 {
-  public CreateProductRequestValidator()
+  public CreateProductCommandValidator()
   {
     RuleFor(x => x.Slug)
       .NotEmpty()
       .WithMessage("El slug del producto es obligatorio.")
-      .MaximumLength(120)
-      .WithMessage("El slug del producto no puede exceder 120 caracteres.");
+      .MaximumLength(128)
+      .WithMessage("El slug del producto no puede exceder 128 caracteres.")
+      .Matches(@"^[a-z0-9-]+$")
+      .WithMessage("El slug solo puede contener letras minúsculas, números y guiones.");
 
     RuleFor(x => x.Name)
       .NotEmpty()
@@ -23,6 +24,11 @@ public sealed class CreateProductRequestValidator : AbstractValidator<CreateProd
       .MaximumLength(64)
       .WithMessage("El SKU del producto no puede exceder 64 caracteres.")
       .When(x => !string.IsNullOrWhiteSpace(x.Sku));
+
+    RuleFor(x => x.Description)
+      .MaximumLength(5000)
+      .WithMessage("La descripción no puede exceder 5000 caracteres.")
+      .When(x => !string.IsNullOrWhiteSpace(x.Description));
 
     RuleFor(x => x.Price)
       .GreaterThanOrEqualTo(0)

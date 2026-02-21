@@ -53,6 +53,8 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Glob
       ErrorCodes.Unauthorized => HttpStatusCode.Unauthorized,
       ErrorCodes.Forbidden => HttpStatusCode.Forbidden,
       ErrorCodes.Conflict => HttpStatusCode.Conflict,
-      _ => HttpStatusCode.Conflict
+      ErrorCodes.ProductInvalidState => HttpStatusCode.Conflict,
+      ErrorCodes.ProductNotAvailable => HttpStatusCode.Conflict,
+      _ => HttpStatusCode.InternalServerError
     };
 }

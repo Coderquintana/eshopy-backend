@@ -1,4 +1,5 @@
 using EShopy.Application.Products;
+using EShopy.Application.Products.Contracts;
 using EShopy.Domain.Products;
 using EShopy.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -27,24 +28,36 @@ public sealed class EfProductRepository(EShopyDbContext db) : IProductRepository
     => db.Products.AsNoTracking()
       .FirstOrDefaultAsync(p => p.TenantId == tenantId && p.Slug == slug, ct);
 
-  public async Task<IReadOnlyList<Product>> GetAdminListAsync(Guid tenantId, CancellationToken ct)
+  public async Task<(IReadOnlyList<Product> Items, long TotalCount)> GetAdminPagedAsync(
+    Guid tenantId, PagedQuery query, CancellationToken ct)
   {
-    var items = await db.Products.AsNoTracking()
+    var baseQuery = db.Products.AsNoTracking()
       .Where(p => p.TenantId == tenantId)
-      .OrderBy(p => p.Name)
+      .OrderBy(p => p.Name);
+
+    var total = await baseQuery.LongCountAsync(ct);
+    var items = await baseQuery
+      .Skip((query.Page - 1) * query.PageSize)
+      .Take(query.PageSize)
       .ToListAsync(ct);
 
-    return items;
+    return (items, total);
   }
 
-  public async Task<IReadOnlyList<Product>> GetPublicListAsync(Guid tenantId, CancellationToken ct)
+  public async Task<(IReadOnlyList<Product> Items, long TotalCount)> GetPublicPagedAsync(
+    Guid tenantId, PagedQuery query, CancellationToken ct)
   {
-    var items = await db.Products.AsNoTracking()
+    var baseQuery = db.Products.AsNoTracking()
       .Where(p => p.TenantId == tenantId && p.Status == ProductStatus.Active)
-      .OrderBy(p => p.Name)
+      .OrderBy(p => p.Name);
+
+    var total = await baseQuery.LongCountAsync(ct);
+    var items = await baseQuery
+      .Skip((query.Page - 1) * query.PageSize)
+      .Take(query.PageSize)
       .ToListAsync(ct);
 
-    return items;
+    return (items, total);
   }
 
   public Task<bool> SlugExistsAsync(Guid tenantId, string slug, Guid? excludingId, CancellationToken ct)
