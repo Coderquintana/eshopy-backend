@@ -74,12 +74,23 @@ Soporte de tests:
 
 ---
 
+## Notas operativas
+
+- DB `EShopy.Dev` validada en `localhost\\SQLEXPRESS`.
+- Migraciones aplicadas:
+  - `20260207035710_InitialCreate`
+  - `20260207042545_AddAppEntityBaseToProducts`
+  - `20260221000601_AddStoreIdToProducts`
+- Si se elimina manualmente `Products`, EF no la recrea al iniciar mientras `__EFMigrationsHistory` siga marcado; ejecutar `dotnet ef database update` con historial consistente.
+
+---
+
 ## Configuracion de desarrollo
 
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=lpc:localhost\\SQLEXPRESS;Database=EShopy.Dev;Trusted_Connection=True;TrustServerCertificate=True;"
+    "DefaultConnection": "Server=localhost\\SQLEXPRESS;Database=EShopy.Dev;Trusted_Connection=True;TrustServerCertificate=True;"
   },
   "Keycloak": {
     "Authority": "http://localhost:8080/realms/eshopy",
@@ -99,4 +110,4 @@ Soporte de tests:
 ```
 
 - DB: SQL Server Express local, base `EShopy.Dev`
-- Keycloak: `localhost:8080`, realm `eshopy`, cliente postman `eshopy-postman`
+- Keycloak: `localhost:8080`, realm `eshopy`, cliente recomendado para admin/API `eshopy-api`

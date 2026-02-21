@@ -9,7 +9,7 @@
 | # | Tarea | Modulo | Detalle |
 |---|---|---|---|
 | B-01 | Refactor ProductService a Result<T> | Catalog | Service lanza excepciones; debe retornar `Result<T>` |
-| B-02 | Agregar StoreId a Product.cs | Catalog | FK obligatorio segun GOVERNANCE. Requiere migracion EF |
+| B-02 | Endurecer bootstrap de DB en Development | Core | Evitar drift entre schema y `__EFMigrationsHistory`; evaluar auto-migracion controlada |
 | B-03 | Paginacion en SQL | Catalog | `GetAdminListAsync` y `GetPublicListAsync` cargan todo en memoria |
 
 ---
@@ -117,3 +117,4 @@
 | C-22 | F2-01 [Authorize] en endpoints admin | Auth | 2026-02-21 |
 | C-23 | F2-02 CORS por ambiente | Auth | 2026-02-21 |
 | C-24 | F2-03 UserContext completo | Auth | 2026-02-21 |
+| C-25 | Baseline dev estabilizado (Postman, audience JWT, connection string y migraciones) | Docs/Core | 2026-02-21 |

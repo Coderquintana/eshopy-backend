@@ -40,6 +40,10 @@ Objetivo: dejar contexto operativo, decisiones y próximos pasos de manera conci
 ## Postman
 - Colección: `Documentation/Postman/EShopy_Backend_MVP.postman_collection.json`
 - Entorno: `Documentation/Postman/EShopy_Backend_MVP.postman_environment.json`
+- Baseline local:
+  - `api_root = http://localhost:5000`
+  - `baseUrl = http://localhost:5000/api`
+  - Token dev recomendado con `kc_client_id = eshopy-api`
 
 ## Encoding (muy importante)
 - Todo el repo debe estar en UTF-8 (sin BOM).
@@ -56,14 +60,14 @@ Objetivo: dejar contexto operativo, decisiones y próximos pasos de manera conci
 - Login se realiza en Keycloak (no hay endpoint de login en backend).
 - Backend valida JWT Bearer (OIDC) y usa policies por módulo.
 - Permissions claim: `permissions` (roles mapeados a permisos).
-- Cliente dev para Postman: `eshopy-postman` (secret `postman-secret`).
+- Cliente recomendado para endpoints admin (audience correcta): `eshopy-api` (secret `eshopy-api-secret`).
 
 ## EF Core / DB
 - DB dev: `EShopy.Dev` en `localhost\\SQLEXPRESS`.
 - Usar EF Core con SQL Server.
 - Todas las columnas deben tener `HasComment` en el mapping.
 - Mantener índices/constraints según documentación.
-- Si SQL Browser no está activo, usar `lpc:` en la connection string para evitar error de instancia.
+- Si aparece `Invalid column name ...`, validar y aplicar migraciones pendientes con `dotnet ef database update`.
 
 ## Commits
 - Mantener commits pequeños y temáticos.
@@ -72,6 +76,40 @@ Objetivo: dejar contexto operativo, decisiones y próximos pasos de manera conci
 - Incluir detalle en el body cuando haya cambios de arquitectura/contratos.
 
 # HISTORIAL DE CAMBIOS
+
+## 2026-02-21
+### Resumen
+- Se completo Fase 2 de seguridad backend (Keycloak OIDC + RBAC por claim `permissions`).
+- Se agrego `UserContext` real por request y accessor desde `HttpContext`.
+- Se configuraron CORS por ambiente y headers de seguridad HTTP.
+- Se agregaron tests de autorizacion de integracion (401/403/200).
+- Se ajusto Postman con endpoint `GET /health` y variable `api_root`.
+- Se fijo `launchSettings.json` para puertos estables (`http://localhost:5000`, `https://localhost:5001`).
+- Se detecto y documentó issue de `401 invalid audience` al crear productos.
+
+### Documentacion
+- Se agrego guia de setup en `docs/keycloak-setup.md`.
+- Se actualizo `Documentation/Keycloak/realm-eshopy.json` con usuarios, roles y permisos.
+- Se agrego mapper de audiencia para emitir `aud = eshopy-api` en access tokens.
+- Se actualizaron `agents/backend/CURRENT_STATE.md` y `agents/backend/BACKLOG.md` marcando Fase 2 completa.
+
+### Build y dependencias
+- Se alinearon versiones NuGet preview para eliminar `NU1603`.
+- Se removio dependencia redundante en infraestructura para eliminar `NU1510`.
+- Se elevo `Microsoft.Build.Tasks.Core` para resolver `NU1903`.
+- Estado final verificado:
+  - `dotnet restore` sin warnings.
+  - `dotnet build` sin warnings ni errores.
+
+### Conexion DB (ajuste operativo)
+- Se normalizo la connection string de desarrollo a `Server=localhost\\SQLEXPRESS` (sin prefijo `lpc:`) en:
+  - `EShopy.Api/appsettings.json`
+  - `EShopy.Api/appsettings.Development.json`
+- Se verifico acceso a `EShopy.Dev` con `sqlcmd`.
+- Se corrigio escape incorrecto de barra invertida (`\\\\SQLEXPRESS` en JSON) que terminaba en `\\SQLEXPRESS` runtime y provocaba `InvalidOperationException: Error de instancia`.
+- Se aplico migracion pendiente `20260221000601_AddStoreIdToProducts` para crear columna `StoreId` en `Products` y eliminar `DbUpdateException: Invalid column name 'StoreId'`.
+- Caso operativo: al eliminar manualmente `Products`, EF no la recrea al iniciar porque `__EFMigrationsHistory` seguia marcando migraciones aplicadas. Se limpio `__EFMigrationsHistory` y se reaplicaron migraciones con `dotnet ef database update`.
+- Validacion funcional: se creo y elimino un producto via API + Postman sobre DB real.
 
 ## 2026-02-07
 ### Resumen

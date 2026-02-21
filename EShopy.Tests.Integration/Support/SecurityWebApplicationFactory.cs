@@ -33,8 +33,8 @@ public sealed class SecurityWebApplicationFactory : WebApplicationFactory<Progra
     {
       services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
       {
-        options.Authority = null;
-        options.MetadataAddress = null;
+        options.Authority = string.Empty;
+        options.MetadataAddress = string.Empty;
         options.RequireHttpsMetadata = false;
         options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters

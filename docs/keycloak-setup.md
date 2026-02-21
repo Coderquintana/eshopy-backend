@@ -110,10 +110,11 @@ En `EShopy.Api/appsettings.Development.json`:
 
 - `Keycloak:Authority = http://localhost:8080/realms/eshopy`
 - `Keycloak:Audience = eshopy-api`
+- El `access_token` debe incluir `aud = eshopy-api`.
 
 ## 6) Token de prueba (Postman)
 
-Client sugerido para password grant en dev: `eshopy-postman`.
+Client sugerido para password grant en dev: `eshopy-api`.
 
 Endpoint:
 
@@ -124,9 +125,23 @@ POST http://localhost:8080/realms/eshopy/protocol/openid-connect/token
 Body (`x-www-form-urlencoded`):
 
 - `grant_type=password`
-- `client_id=eshopy-postman`
-- `client_secret=postman-secret`
+- `client_id=eshopy-api`
+- `client_secret=eshopy-api-secret`
 - `username=admin@tenant1.local`
 - `password=Admin123!`
 
 Usar `access_token` como `Bearer` en endpoints admin.
+
+## 7) Troubleshooting 401 invalid audience
+
+Si la API responde `401` con `SecurityTokenInvalidAudienceException`:
+
+1. Decodificar el JWT y verificar claim `aud`.
+2. Debe contener `eshopy-api`.
+3. Si falta, agregar un client scope dedicado para audiencia:
+   - Client scope: `audience-eshopy-api`
+   - Mapper type: `Audience`
+   - Included Client Audience: `eshopy-api`
+   - Add to access token: ON
+4. Asignar ese client scope como `Default` en el cliente `eshopy-api`.
+5. Nota: `eshopy-api-dedicated` puede quedar con `Assigned type = None`; no es necesario cambiarlo.

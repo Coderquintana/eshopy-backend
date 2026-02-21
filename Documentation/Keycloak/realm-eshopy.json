@@ -148,7 +148,8 @@
         "profile",
         "email",
         "roles",
-        "permissions"
+        "permissions",
+        "audience-eshopy-api"
       ]
     },
     {
@@ -231,12 +232,34 @@
           }
         }
       ]
+    },
+    {
+      "name": "audience-eshopy-api",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "aud-eshopy-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "eshopy-api",
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     }
   ],
   "defaultDefaultClientScopes": [
     "profile",
     "email",
     "roles",
-    "permissions"
+    "permissions",
+    "audience-eshopy-api"
   ]
 }
