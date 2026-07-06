@@ -1,0 +1,13 @@
+# Python 3.11+ compatible. Probado en Python 3.14 / Windows.
+flask==3.0.3
+flask-sqlalchemy==3.1.1
+# sqlalchemy: usar >= 2.0.36 para Python 3.14
+sqlalchemy>=2.0.36
+flasgger==0.9.7.1
+python-dotenv==1.0.1
+requests==2.32.3
+waitress==3.0.0
+cachetools==5.3.3
+# El motor Poisson está implementado en Python puro (sin numpy/scipy)
+# para máxima portabilidad. Si quieres soccerdata (xG), instalar aparte:
+# pip install soccerdata
