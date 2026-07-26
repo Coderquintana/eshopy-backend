@@ -5,6 +5,7 @@ using System.Text.Json;
 using EShopy.Application.Common.Identity;
 using EShopy.Domain.Common.Errors;
 using EShopy.Domain.Common.Exceptions;
+using EShopy.Domain.Tenants;
 using Microsoft.Extensions.Configuration;
 
 namespace EShopy.Infrastructure.Identity;
@@ -15,21 +16,28 @@ namespace EShopy.Infrastructure.Identity;
 /// </summary>
 public sealed class KeycloakAdminClient(HttpClient httpClient, IConfiguration configuration) : IKeycloakUserProvisioner
 {
-  private const string OwnerRealmRole = "TENANT_OWNER";
-
-  public async Task<string> CreateOwnerUserAsync(string email, string name, string subdomain, CancellationToken ct)
+  public async Task<string> CreateUserAsync(string email, string name, string subdomain, TenantUserRole role, CancellationToken ct)
   {
     var keycloak = configuration.GetSection("Keycloak");
     var adminBaseUrl = (keycloak["AdminBaseUrl"] ?? throw MissingConfig("Keycloak:AdminBaseUrl")).TrimEnd('/');
     var authority = keycloak["Authority"] ?? throw MissingConfig("Keycloak:Authority");
     var realm = ExtractRealm(authority);
+    var realmRole = RealmRoleFor(role);
 
     var accessToken = await GetAdminAccessTokenAsync(keycloak, authority, ct);
-    var userId = await CreateUserAsync(adminBaseUrl, realm, accessToken, email, name, ct);
-    await AssignRealmRoleAsync(adminBaseUrl, realm, accessToken, userId, ct);
+    var userId = await CreateKeycloakUserAsync(adminBaseUrl, realm, accessToken, email, name, ct);
+    await AssignRealmRoleAsync(adminBaseUrl, realm, accessToken, userId, realmRole, ct);
 
     return userId;
   }
+
+  private static string RealmRoleFor(TenantUserRole role) => role switch
+  {
+    TenantUserRole.Owner => "TENANT_OWNER",
+    TenantUserRole.Admin => "TENANT_ADMIN",
+    TenantUserRole.Staff => "TENANT_STAFF",
+    _ => throw new ArgumentOutOfRangeException(nameof(role), role, "Rol de tenant desconocido.")
+  };
 
   private async Task<string> GetAdminAccessTokenAsync(IConfigurationSection keycloak, string authority, CancellationToken ct)
   {
@@ -55,7 +63,7 @@ public sealed class KeycloakAdminClient(HttpClient httpClient, IConfiguration co
       ?? throw new DomainException(ErrorCodes.ExternalServiceError, "Keycloak no devolvio un access_token valido.");
   }
 
-  private async Task<string> CreateUserAsync(string adminBaseUrl, string realm, string accessToken, string email, string name, CancellationToken ct)
+  private async Task<string> CreateKeycloakUserAsync(string adminBaseUrl, string realm, string accessToken, string email, string name, CancellationToken ct)
   {
     var (firstName, lastName) = SplitName(name);
 
@@ -81,7 +89,7 @@ public sealed class KeycloakAdminClient(HttpClient httpClient, IConfiguration co
       throw new DomainException(ErrorCodes.Conflict, "Ya existe un usuario en Keycloak con ese email.");
 
     if (!response.IsSuccessStatusCode)
-      throw new DomainException(ErrorCodes.ExternalServiceError, "No se pudo crear el usuario Owner en Keycloak.");
+      throw new DomainException(ErrorCodes.ExternalServiceError, "No se pudo crear el usuario en Keycloak.");
 
     var location = response.Headers.Location
       ?? throw new DomainException(ErrorCodes.ExternalServiceError, "Keycloak no devolvio la ubicacion del usuario creado.");
@@ -89,14 +97,14 @@ public sealed class KeycloakAdminClient(HttpClient httpClient, IConfiguration co
     return location.Segments[^1];
   }
 
-  private async Task AssignRealmRoleAsync(string adminBaseUrl, string realm, string accessToken, string userId, CancellationToken ct)
+  private async Task AssignRealmRoleAsync(string adminBaseUrl, string realm, string accessToken, string userId, string realmRole, CancellationToken ct)
   {
-    using var roleRequest = new HttpRequestMessage(HttpMethod.Get, $"{adminBaseUrl}/admin/realms/{realm}/roles/{OwnerRealmRole}");
+    using var roleRequest = new HttpRequestMessage(HttpMethod.Get, $"{adminBaseUrl}/admin/realms/{realm}/roles/{realmRole}");
     roleRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
     using var roleResponse = await httpClient.SendAsync(roleRequest, ct);
     if (!roleResponse.IsSuccessStatusCode)
-      throw new DomainException(ErrorCodes.ExternalServiceError, $"No se pudo obtener el rol de realm '{OwnerRealmRole}'.");
+      throw new DomainException(ErrorCodes.ExternalServiceError, $"No se pudo obtener el rol de realm '{realmRole}'.");
 
     var role = await roleResponse.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
 
@@ -106,7 +114,7 @@ public sealed class KeycloakAdminClient(HttpClient httpClient, IConfiguration co
 
     using var assignResponse = await httpClient.SendAsync(assignRequest, ct);
     if (!assignResponse.IsSuccessStatusCode)
-      throw new DomainException(ErrorCodes.ExternalServiceError, $"No se pudo asignar el rol '{OwnerRealmRole}' al usuario creado.");
+      throw new DomainException(ErrorCodes.ExternalServiceError, $"No se pudo asignar el rol '{realmRole}' al usuario creado.");
   }
 
   private static (string FirstName, string LastName) SplitName(string name)

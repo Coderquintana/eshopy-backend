@@ -34,8 +34,8 @@ public sealed class CreateTenantCommandHandler(
 
     // 3. Crear al Owner en Keycloak ANTES de escribir en la base local: si esto falla, no queda
     //    un Tenant huerfano sin usuario (evita necesitar una transaccion compensatoria).
-    var keycloakUserId = await keycloakProvisioner.CreateOwnerUserAsync(
-      command.OwnerEmail, command.OwnerName, normalizedSubdomain, ct);
+    var keycloakUserId = await keycloakProvisioner.CreateUserAsync(
+      command.OwnerEmail, command.OwnerName, normalizedSubdomain, TenantUserRole.Owner, ct);
 
     // 4. Crear y persistir Tenant + Store + TenantUser(Owner) + Subscription en una transaccion
     try

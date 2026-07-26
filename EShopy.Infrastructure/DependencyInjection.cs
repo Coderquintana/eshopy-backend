@@ -34,6 +34,7 @@ public static class DependencyInjection
     // Tenant
     services.AddScoped<ITenantResolver, EfTenantResolver>();
     services.AddScoped<ITenantRepository, EfTenantRepository>();
+    services.AddScoped<ITenantUserRepository, EfTenantUserRepository>();
     services.AddScoped<ITenantOnboardingWriter, EfTenantOnboardingWriter>();
     services.AddScoped<ITenantActivationWriter, EfTenantActivationWriter>();
     services.AddHttpClient<IKeycloakUserProvisioner, KeycloakAdminClient>();
@@ -54,6 +55,8 @@ public static class DependencyInjection
     services.AddScoped<UpdateStoreCommandHandler>();
     services.AddScoped<GetStoreQueryHandler>();
     services.AddScoped<GetTenantByIdQueryHandler>();
+    services.AddScoped<InviteTenantUserCommandHandler>();
+    services.AddScoped<GetTenantUsersQueryHandler>();
 
     // Handlers de productos — Commands
     services.AddScoped<CreateProductCommandHandler>();

@@ -24,6 +24,16 @@ internal static class TenantMappings
     ActivatedAtUtc = tenant.ActivatedAtUtc
   };
 
+  internal static TenantUserDto ToUserDto(TenantUser user) => new()
+  {
+    Id = user.Id,
+    Email = user.Email,
+    Name = user.Name,
+    Role = user.Role.ToString(),
+    IsActive = user.IsActive,
+    CreatedAtUtc = user.CreatedAtUtc
+  };
+
   internal static StoreProfileDto ToStoreProfileDto(Store store) => new()
   {
     StoreId = store.Id,
