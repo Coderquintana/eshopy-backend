@@ -63,6 +63,7 @@ public static class DependencyInjection
 
     // Carts
     services.AddScoped<ICartRepository, EfCartRepository>();
+    services.AddHostedService<CartCleanupBackgroundService>();
 
     // Orders / Payments
     services.AddScoped<IOrderRepository, EfOrderRepository>();

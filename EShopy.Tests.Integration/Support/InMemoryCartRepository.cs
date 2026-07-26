@@ -40,4 +40,16 @@ internal sealed class InMemoryCartRepository : ICartRepository
     }
     return Task.CompletedTask;
   }
+
+  public Task<int> DeleteExpiredAsync(DateTime nowUtc, CancellationToken ct)
+  {
+    lock (_sync)
+    {
+      var expiredKeys = _carts.Where(kv => kv.Value.ExpiresAtUtc < nowUtc).Select(kv => kv.Key).ToList();
+      foreach (var key in expiredKeys)
+        _carts.Remove(key);
+
+      return Task.FromResult(expiredKeys.Count);
+    }
+  }
 }

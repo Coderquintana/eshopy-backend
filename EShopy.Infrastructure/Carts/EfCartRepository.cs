@@ -27,4 +27,9 @@ public sealed class EfCartRepository(EShopyDbContext db) : ICartRepository
     db.Carts.Remove(cart);
     await db.SaveChangesAsync(ct);
   }
+
+  // ExecuteDeleteAsync: DELETE en bloque, sin cargar entidades a memoria. CartItems cascadea a nivel
+  // de constraint DB (ON DELETE CASCADE, ver CartConfiguration) — no hace falta borrarlos aparte.
+  public Task<int> DeleteExpiredAsync(DateTime nowUtc, CancellationToken ct)
+    => db.Carts.Where(c => c.ExpiresAtUtc < nowUtc).ExecuteDeleteAsync(ct);
 }
