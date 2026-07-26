@@ -718,43 +718,33 @@
       "name": "Payments",
       "item": [
         {
-          "name": "Create Payment",
+          "name": "Payment Webhook (Fake, dev-only)",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "X-Fake-Signature",
+                "value": "fake-webhook-secret-dev-only"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
-              "raw": "{{baseUrl}}/payments",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "payments"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"provider\": \"Bancard\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Payment Webhook (Provider)",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/payments/webhook",
+              "raw": "{{baseUrl}}/payments/webhooks/fake",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "payments",
-                "webhook"
+                "webhooks",
+                "fake"
               ]
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"provider\": \"Bancard\",\n  \"externalEventId\": \"evt_123\",\n  \"externalPaymentId\": \"pay_123\",\n  \"externalReference\": \"ref_123\",\n  \"result\": \"Captured\",\n  \"amount\": 1000.0,\n  \"currencyCode\": \"PYG\",\n  \"occurredAtUtc\": \"2026-02-05T19:00:00Z\"\n}"
+              "raw": "{\n  \"eventId\": \"evt-123\",\n  \"providerPaymentId\": \"fake-payment-...\",\n  \"eventType\": \"Captured\"\n}"
             }
           }
         }
