@@ -38,6 +38,7 @@ public abstract class BaseApiController : ControllerBase
       ErrorCodes.TenantNotFound => NotFound(error),
       ErrorCodes.ProductInvalidState => Conflict(error),
       ErrorCodes.ProductNotAvailable => Conflict(error),
+      ErrorCodes.OrderInvalidState => Conflict(error),
       ErrorCodes.ConcurrencyConflict => Conflict(error),
       ErrorCodes.TenantInvalidState => Conflict(error),
       ErrorCodes.TenantSuspended => StatusCode(StatusCodes.Status403Forbidden, error),
