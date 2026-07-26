@@ -1,4 +1,5 @@
 using System.Text;
+using EShopy.Application.Carts;
 using EShopy.Application.Common.Identity;
 using EShopy.Application.Common.Stores;
 using EShopy.Application.Common.Tenants;
@@ -88,6 +89,9 @@ public sealed class SecurityWebApplicationFactory : WebApplicationFactory<Progra
 
       services.RemoveAll<IKeycloakUserProvisioner>();
       services.AddSingleton<IKeycloakUserProvisioner, FakeKeycloakUserProvisioner>();
+
+      services.RemoveAll<ICartRepository>();
+      services.AddSingleton<ICartRepository, InMemoryCartRepository>();
     });
   }
 }

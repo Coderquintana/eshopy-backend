@@ -51,6 +51,18 @@ internal sealed class InMemoryProductRepository : IProductRepository
     }
   }
 
+  public Task<IReadOnlyList<Product>> GetByIdsAsync(Guid tenantId, IReadOnlyCollection<Guid> ids, CancellationToken ct)
+  {
+    lock (_sync)
+    {
+      var products = _productsByTenant.TryGetValue(tenantId, out var items)
+        ? items.Where(x => ids.Contains(x.Id)).ToList()
+        : [];
+
+      return Task.FromResult((IReadOnlyList<Product>)products);
+    }
+  }
+
   public Task<(IReadOnlyList<Product> Items, long TotalCount)> GetAdminPagedAsync(Guid tenantId, PagedQuery query, CancellationToken ct)
   {
     lock (_sync)
