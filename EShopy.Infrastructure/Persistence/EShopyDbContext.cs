@@ -1,4 +1,5 @@
 using EShopy.Application.Common.Context;
+using EShopy.Domain.Carts;
 using EShopy.Domain.Products;
 using EShopy.Domain.Subscriptions;
 using EShopy.Domain.Tenants;
@@ -19,6 +20,7 @@ public sealed class EShopyDbContext(
   public DbSet<Store> Stores => Set<Store>();
   public DbSet<TenantUser> TenantUsers => Set<TenantUser>();
   public DbSet<Subscription> Subscriptions => Set<Subscription>();
+  public DbSet<Cart> Carts => Set<Cart>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
@@ -27,6 +29,8 @@ public sealed class EShopyDbContext(
     modelBuilder.ApplyConfiguration(new StoreConfiguration());
     modelBuilder.ApplyConfiguration(new TenantUserConfiguration());
     modelBuilder.ApplyConfiguration(new SubscriptionConfiguration());
+    modelBuilder.ApplyConfiguration(new CartConfiguration());
+    modelBuilder.ApplyConfiguration(new CartItemConfiguration());
 
     // Global Query Filter de multi-tenancy.
     // Si TenantId no está disponible (e.g. migrations en design-time, o rutas SUPERADMIN excluidas
@@ -48,5 +52,8 @@ public sealed class EShopyDbContext(
 
     modelBuilder.Entity<Subscription>()
       .HasQueryFilter(s => tenantContext.TenantId == null || s.TenantId == tenantContext.TenantId);
+
+    modelBuilder.Entity<Cart>()
+      .HasQueryFilter(c => tenantContext.TenantId == null || c.TenantId == tenantContext.TenantId);
   }
 }

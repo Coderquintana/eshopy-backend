@@ -1,3 +1,6 @@
+using EShopy.Application.Carts;
+using EShopy.Application.Carts.Commands;
+using EShopy.Application.Carts.Queries;
 using EShopy.Application.Common.Identity;
 using EShopy.Application.Common.Stores;
 using EShopy.Application.Common.Tenants;
@@ -8,6 +11,7 @@ using EShopy.Application.Subscriptions;
 using EShopy.Application.Tenants;
 using EShopy.Application.Tenants.Commands;
 using EShopy.Application.Tenants.Queries;
+using EShopy.Infrastructure.Carts;
 using EShopy.Infrastructure.Identity;
 using EShopy.Infrastructure.Persistence;
 using EShopy.Infrastructure.Products;
@@ -49,6 +53,9 @@ public static class DependencyInjection
     // Repositorios — Catalog
     services.AddScoped<IProductRepository, EfProductRepository>();
 
+    // Carts
+    services.AddScoped<ICartRepository, EfCartRepository>();
+
     // Handlers — Tenants / Store
     services.AddScoped<CreateTenantCommandHandler>();
     services.AddScoped<ActivateTenantCommandHandler>();
@@ -68,6 +75,12 @@ public static class DependencyInjection
     services.AddScoped<GetProductByIdQueryHandler>();
     services.AddScoped<GetPublicProductsQueryHandler>();
     services.AddScoped<GetProductBySlugQueryHandler>();
+
+    // Handlers — Cart
+    services.AddScoped<AddCartItemCommandHandler>();
+    services.AddScoped<UpdateCartItemQuantityCommandHandler>();
+    services.AddScoped<RemoveCartItemCommandHandler>();
+    services.AddScoped<GetCartQueryHandler>();
 
     return services;
   }

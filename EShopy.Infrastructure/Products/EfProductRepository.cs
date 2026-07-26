@@ -28,6 +28,16 @@ public sealed class EfProductRepository(EShopyDbContext db) : IProductRepository
     => db.Products.AsNoTracking()
       .FirstOrDefaultAsync(p => p.TenantId == tenantId && p.Slug == slug, ct);
 
+  public async Task<IReadOnlyList<Product>> GetByIdsAsync(Guid tenantId, IReadOnlyCollection<Guid> ids, CancellationToken ct)
+  {
+    if (ids.Count == 0)
+      return [];
+
+    return await db.Products.AsNoTracking()
+      .Where(p => p.TenantId == tenantId && ids.Contains(p.Id))
+      .ToListAsync(ct);
+  }
+
   public async Task<(IReadOnlyList<Product> Items, long TotalCount)> GetAdminPagedAsync(
     Guid tenantId, PagedQuery query, CancellationToken ct)
   {
