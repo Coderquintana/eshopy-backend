@@ -74,6 +74,9 @@ public sealed class SecurityWebApplicationFactory : WebApplicationFactory<Progra
       services.RemoveAll<IStoreRepository>();
       services.AddSingleton<IStoreRepository, InMemoryStoreRepository>();
 
+      services.RemoveAll<ITenantUserRepository>();
+      services.AddSingleton<ITenantUserRepository, InMemoryTenantUserRepository>();
+
       services.RemoveAll<ISubscriptionRepository>();
       services.AddSingleton<ISubscriptionRepository, InMemorySubscriptionRepository>();
 
