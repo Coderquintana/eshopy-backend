@@ -36,12 +36,44 @@ El realm `eshopy` se importa solo al arrancar `keycloak` (ver seccion 0). El exp
 
 - `Documentation/Keycloak/realm-eshopy.json`
 
-Incluye ademas el service account de `eshopy-api` con los roles `manage-users`/`view-users`
-de `realm-management`, necesarios para que el backend cree usuarios (Owner de un tenant nuevo)
-via la Keycloak Admin API durante el onboarding.
+Incluye el client scope `client-roles` (mapea `resource_access.<client>.roles` al token, requerido
+para que el backend pueda llamar la Keycloak Admin API) asignado por default a `eshopy-api`.
+
+**Paso unico despues del primer `docker compose up -d`** (verificado: Keycloak no otorga roles de
+`realm-management` a un service account via el import de realm de forma confiable — hay que
+otorgarlos con el admin real del `master` realm una sola vez):
+
+```bash
+# 1. Token del admin de Keycloak (master realm, no el realm eshopy)
+MASTER_TOKEN=$(curl -s -X POST http://localhost:8080/realms/master/protocol/openid-connect/token \
+  -d "grant_type=password" -d "client_id=admin-cli" \
+  -d "username=admin" -d "password=admin" | python -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
+
+# 2. IDs internos necesarios
+CLIENT_UUID=$(curl -s "http://localhost:8080/admin/realms/eshopy/clients?clientId=eshopy-api" \
+  -H "Authorization: Bearer $MASTER_TOKEN" | python -c "import json,sys; print(json.load(sys.stdin)[0]['id'])")
+SA_USER_ID=$(curl -s "http://localhost:8080/admin/realms/eshopy/clients/$CLIENT_UUID/service-account-user" \
+  -H "Authorization: Bearer $MASTER_TOKEN" | python -c "import json,sys; print(json.load(sys.stdin)['id'])")
+RM_UUID=$(curl -s "http://localhost:8080/admin/realms/eshopy/clients?clientId=realm-management" \
+  -H "Authorization: Bearer $MASTER_TOKEN" | python -c "import json,sys; print(json.load(sys.stdin)[0]['id'])")
+
+# 3. Otorgar manage-users, view-users, view-realm al service account de eshopy-api
+ROLES=$(curl -s "http://localhost:8080/admin/realms/eshopy/clients/$RM_UUID/roles" \
+  -H "Authorization: Bearer $MASTER_TOKEN" | python -c "
+import json,sys
+roles = json.load(sys.stdin)
+print(json.dumps([r for r in roles if r['name'] in ('manage-users','view-users','view-realm')]))
+")
+curl -s -X POST "http://localhost:8080/admin/realms/eshopy/users/$SA_USER_ID/role-mappings/clients/$RM_UUID" \
+  -H "Authorization: Bearer $MASTER_TOKEN" -H "Content-Type: application/json" -d "$ROLES"
+```
+
+Sin este paso, `POST /api/onboarding/tenants` falla con `EXTERNAL_SERVICE_ERROR` (502) al intentar
+crear el usuario Owner en Keycloak.
 
 Si necesitas reimportar despues de un cambio manual en el realm: `docker compose down -v` (borra
-los volumenes) y `docker compose up -d` de nuevo.
+los volumenes, incluida esta asignacion de roles — hay que repetir el paso de arriba) y
+`docker compose up -d` de nuevo.
 
 ## 2) Configuracion manual (alternativa, si no usas el compose)
 
