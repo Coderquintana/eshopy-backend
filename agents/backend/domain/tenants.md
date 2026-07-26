@@ -88,8 +88,8 @@ Ver `architecture/api-contracts.md` para el detalle completo de request/response
 | POST | `/api/admin/tenants/{id}/activate` | TenantsWrite (SUPERADMIN) | Activacion manual — unico trigger disponible hasta que exista el webhook de pago (Fase 8) |
 | GET | `/api/store` | Público | Config pública del store (Storefront) |
 | PUT | `/api/store` | StoreWrite | Actualizar config del store (Admin) |
-| GET | `/api/admin/users` | UsersManage | ❌ No implementado — listar usuarios del tenant |
-| POST | `/api/admin/users` | UsersManage | ❌ No implementado — invitar Admin/Staff adicional al tenant |
+| GET | `/api/admin/users` | UsersManage | Listar usuarios (Owner+Admin+Staff) del tenant actual |
+| POST | `/api/admin/users` | UsersManage | Invitar Admin o Staff al tenant actual (Owner no es invitable, se crea solo en el onboarding) |
 
 ## Estado de implementación
 
@@ -97,5 +97,5 @@ Ver `architecture/api-contracts.md` para el detalle completo de request/response
 |---|---|
 | Tenant | ✅ Implementado — `EShopy.Domain/Tenants/Tenant.cs`, entidad global, maquina de estados completa |
 | Store | ✅ Implementado — `EShopy.Domain/Tenants/Store.cs`, 1:1 con Tenant, `CurrencyCode` inmutable tras creacion |
-| TenantUser | ✅ Implementado — solo el Owner se crea hoy (onboarding). Invitar Admin/Staff adicionales (`GET/POST /api/admin/users`) queda pendiente, ver BACKLOG.md |
+| TenantUser | ✅ Implementado — Owner se crea en el onboarding, Admin/Staff via `POST /api/admin/users` (F4-05) |
 | TenantResolutionMiddleware | ✅ Implementado contra DB real (`EfTenantResolver`, cache ~60s por subdominio). Bloquea `Suspended`/`Cancelled` con 403 |

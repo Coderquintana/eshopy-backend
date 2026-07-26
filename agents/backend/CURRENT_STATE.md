@@ -5,8 +5,9 @@
 >
 > **Smoke test real (2026-07-26)**: `docker compose up -d` + migraciones + API corriendo, flujo
 > completo probado contra SQL Server y Keycloak reales (no fakes): onboarding → Keycloak crea el
-> Owner → activacion SUPERADMIN → `GET/PUT /api/store` → crear un Product real. Encontro y arreglo
-> 2 bugs que los tests con fakes no podian atrapar — ver C-39/C-40 en BACKLOG.md.
+> Owner → activacion SUPERADMIN → `GET/PUT /api/store` → crear un Product real → invitar un Staff
+> (F4-05). Encontro y arreglo 2 bugs que los tests con fakes no podian atrapar — ver C-39/C-40 en
+> BACKLOG.md.
 
 ---
 
@@ -18,7 +19,7 @@
 | **Auth (Keycloak/JWT)** | ? Completo (Fase 2) | OIDC + RBAC por claim `permissions` + CORS por ambiente + headers de seguridad + UserContextAccessor |
 | **Products (Catalog)** | ? Completo (MVP) | CQRS + Result<T> + SQL pagination + StoreId + transiciones validadas. `ProductService` ya no existe (reemplazado por Commands/Queries). FK reales a Tenants/Stores. RowVersion configurado pero no cableado end-to-end (ver D-03) |
 | **Store** | ? Implementado | `EfStoreService`/`IStoreRepository` reales (reemplazan `InMemoryStoreService`). `GET/PUT /api/store` funcionando. `CurrencyCode` inmutable tras creacion |
-| **Tenants** | ? Implementado (Fase 4) | `Tenant`/`TenantUser` reales, maquina de estados completa. `EfTenantResolver` reemplaza el diccionario en memoria (cache ~60s por subdominio). Onboarding (`POST /api/onboarding/tenants`) crea Tenant+Store+Owner(Keycloak)+Subscription atomicamente. Activacion manual SUPERADMIN implementada; webhook de pago sigue en Fase 8. Invitar Admin/Staff adicionales (`/api/admin/users`) queda pendiente (F4-05) |
+| **Tenants** | ? Implementado (Fase 4) | `Tenant`/`TenantUser` reales, maquina de estados completa. `EfTenantResolver` reemplaza el diccionario en memoria (cache ~60s por subdominio). Onboarding (`POST /api/onboarding/tenants`) crea Tenant+Store+Owner(Keycloak)+Subscription atomicamente. Activacion manual SUPERADMIN implementada; webhook de pago sigue en Fase 8. Invitar Admin/Staff (`GET/POST /api/admin/users`) implementado y verificado en vivo (F4-05) |
 | **Subscriptions** | ?? Minimo (Fase 4) | Entidad y maquina de estados completas, se crea en el onboarding. Sin integracion de pago real: `PriceAmount` siempre 0 (precios TBD), sin renovacion automatica ni webhook — todo eso es Fase 8 |
 | **Carts** | ? No iniciado | Fase 6 |
 | **Orders** | ? No iniciado | Fase 7 |
@@ -96,8 +97,8 @@ Estado: **? Completo**
 
 | Suite | Tests | Estado |
 |---|---|---|
-| `EShopy.Tests.Unit` | 63 tests | ? (incluye `TenantTests`, `SubscriptionTests`, `TenantValidatorTests`, `SubdomainResolverTests`) |
-| `EShopy.Tests.Integration` | 7 tests | ? Incluye seguridad 401/403/200 y flujo de onboarding end-to-end |
+| `EShopy.Tests.Unit` | 70 tests | ? (incluye `TenantTests`, `SubscriptionTests`, `TenantValidatorTests`, `InviteTenantUserCommandValidatorTests`, `SubdomainResolverTests`) |
+| `EShopy.Tests.Integration` | 10 tests | ? Incluye seguridad 401/403/200, onboarding y flujo de invitacion de usuarios end-to-end |
 
 Nuevos tests de seguridad:
 

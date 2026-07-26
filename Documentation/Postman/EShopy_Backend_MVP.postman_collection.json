@@ -430,6 +430,63 @@
       ]
     },
     {
+      "name": "Users (Admin)",
+      "item": [
+        {
+          "name": "List Tenant Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{api_root}}/admin/users",
+              "host": [
+                "{{api_root}}"
+              ],
+              "path": [
+                "admin",
+                "users"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Invite Tenant User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{api_root}}/admin/users",
+              "host": [
+                "{{api_root}}"
+              ],
+              "path": [
+                "admin",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"staff@mitienda.com\",\n  \"name\": \"Ana Gomez\",\n  \"role\": \"staff\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Cart",
       "item": [
         {

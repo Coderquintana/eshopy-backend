@@ -255,6 +255,46 @@ un tenant. Excluido de `TenantResolutionMiddleware`.
 
 ---
 
+## Tenants / Store — Usuarios del tenant
+
+### GET /api/admin/users
+Lista los usuarios (Owner, Admin, Staff) del tenant resuelto por subdominio.
+
+**Auth**: `UsersManage` (SUPERADMIN u OWNER)
+
+**Response 200:**
+```json
+[
+  { "id": "...", "email": "owner@mitienda.com", "name": "Juan Perez", "role": "Owner", "isActive": true, "createdAtUtc": "2026-07-26T13:00:00Z" },
+  { "id": "...", "email": "staff@mitienda.com", "name": "Ana Gomez", "role": "Staff", "isActive": true, "createdAtUtc": "2026-07-26T14:00:00Z" }
+]
+```
+
+---
+
+### POST /api/admin/users
+Invita un usuario Admin o Staff al tenant actual (crea el usuario en Keycloak). El Owner **no** es
+invitable por esta via: se crea una unica vez durante `POST /api/onboarding/tenants`.
+
+**Auth**: `UsersManage` (SUPERADMIN u OWNER)
+
+**Request body:**
+```json
+{
+  "email": "staff@mitienda.com",
+  "name": "Ana Gomez",
+  "role": "staff"
+}
+```
+> `role`: `"admin"` o `"staff"` (case-insensitive).
+
+**Response 201**: `TenantUserDto` (ver arriba).
+
+**Errores**: `VALIDATION_ERROR` (400, incluye `role: "owner"`), `CONFLICT` si el email ya existe
+en este tenant (409), `EXTERNAL_SERVICE_ERROR` si falla la creacion en Keycloak (502).
+
+---
+
 ## Store
 
 ### GET /api/store
@@ -371,6 +411,14 @@ public record TenantAdminDto(
     Guid Id, string Subdomain, string BusinessName,
     string Status, string Plan,
     DateTime CreatedAtUtc, DateTime? ActivatedAtUtc
+);
+```
+
+### TenantUserDto
+```csharp
+public record TenantUserDto(
+    Guid Id, string Email, string Name,
+    string Role, bool IsActive, DateTime CreatedAtUtc
 );
 ```
 
