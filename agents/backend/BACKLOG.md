@@ -52,13 +52,10 @@ _(vacio)_
 | F5-03 | Auditoria de cambios (precio/estado) | AuditLog en tabla DB |
 | F5-04 | ProductImages (metadata imagenes) | Entidad + endpoint de imagenes |
 
-### Fase 6 - Carrito — diseño redefinido 2026-07-26, ver `domain/carts.md`
+### Fase 6 - Carrito — completa, ver COMPLETADAS
 | # | Tarea | Descripcion |
 |---|---|---|
-| F6-01 | `Cart` + `CartItem` (dominio) | Sin `UnitPrice` en `CartItem` — el precio se lee en vivo, el snapshot es recien en Order |
-| F6-02 | Commands: Add/Update/Remove CartItem | `PUT/DELETE /api/cart/items/{productId}` — clave por ProductId, no por CartItem.Id interno |
-| F6-03 | Query: GetCart por CartToken | `GET /api/cart`, header `X-Cart-Token` |
-| F6-04 | Job limpieza carritos expirados | Background job periodico — no bloqueante para F6-01..03 |
+| F6-04 | Job limpieza carritos expirados | Background job periodico — unico pendiente de la fase, no bloqueante |
 
 ### Fase 7 - Pedidos — diseño redefinido 2026-07-26, ver `domain/orders.md`
 | # | Tarea | Descripcion |
@@ -142,3 +139,4 @@ _(vacio)_
 | C-40 | Bug real (mismo smoke test): el service account de `eshopy-api` no tenia realmente los roles `manage-users`/`view-users`/`view-realm` de `realm-management` — la entrada manual en `realm-eshopy.json` (`users[].clientRoles`) no se aplica de forma confiable durante `--import-realm`. Se agrego el client scope `client-roles` (mapea `resource_access` al token) y se documento el paso de grant manual de una sola vez en `docs/keycloak-setup.md` | Auth/Tenants | 2026-07-26 |
 | C-41 | F4-05 Invitar Admin/Staff (`GET/POST /api/admin/users`) — `IKeycloakUserProvisioner` generalizado a cualquier `TenantUserRole` (no solo Owner); verificado en vivo contra Keycloak/SQL Server reales | Tenants | 2026-07-26 |
 | C-42 | `PagedResult<T>.TotalPages` (computado) — `api-contracts.md` ya lo documentaba en toda respuesta paginada, el DTO no lo tenia | Core | 2026-07-26 |
+| C-43 | F6-01/02/03 `Cart` + `CartItem` completos — primer agregado del proyecto con coleccion hija encapsulada (`Items` respaldado por campo privado, `PropertyAccessMode.Field`). `GET/POST/PUT/DELETE /api/cart[/items/{productId}]`, `IProductRepository.GetByIdsAsync` (batch, evita N+1 en el DTO). Verificado en vivo: acumular, listar, actualizar, eliminar, contra SQL Server real | Carts | 2026-07-26 |

@@ -340,14 +340,55 @@ rompería precios ya registrados en Products/Orders.
 
 ---
 
-## Cart endpoints (diseño, no implementado)
+## Cart
 
-| Método | Ruta | Auth | Descripción |
-|---|---|---|---|
-| POST | `/api/cart/items` | Anónimo | Agregar item al carrito |
-| PUT | `/api/cart/items/{id}` | Anónimo | Actualizar cantidad |
-| DELETE | `/api/cart/items/{id}` | Anónimo | Eliminar item |
-| GET | `/api/cart` | Anónimo | Obtener carrito por `CartToken` header |
+Todos los endpoints usan el header `X-Cart-Token` (UUID generado en el frontend) para identificar
+el carrito — no hay auth, es anónimo por diseño.
+
+### GET /api/cart
+Obtiene el carrito actual. Si el `X-Cart-Token` no tiene carrito asociado todavia, retorna uno vacio
+(200, no 404) — un carrito sin items es un estado valido, no un error.
+
+**Response 200:** `CartDto` (ver DTOs de referencia).
+
+---
+
+### POST /api/cart/items
+Agrega un producto. Si ya estaba en el carrito, **acumula** la cantidad (no duplica el item).
+
+**Request body:**
+```json
+{ "productId": "aaaaaaaa-...", "quantity": 2 }
+```
+
+**Response 200:** `CartDto` actualizado.
+
+**Errores**: `VALIDATION_ERROR` (400), `PRODUCT_NOT_AVAILABLE` si el producto no existe o no esta
+`Active` en este tenant (409).
+
+---
+
+### PUT /api/cart/items/{productId:guid}
+Actualiza la cantidad de un item existente. La clave de ruta es el `ProductId`, no un id interno de
+`CartItem` — el frontend nunca necesita conocer ese id.
+
+**Request body:**
+```json
+{ "quantity": 5 }
+```
+
+**Response 200:** `CartDto` actualizado.
+
+**Errores**: `NOT_FOUND` si el carrito o el item no existen (404).
+
+---
+
+### DELETE /api/cart/items/{productId:guid}
+Quita un item del carrito.
+
+**Response 200:** `CartDto` actualizado.
+
+**Errores**: `NOT_FOUND` si el carrito o el item no existen (404).
 
 ---
 
@@ -372,6 +413,20 @@ rompería precios ya registrados en Products/Orders.
 ---
 
 ## DTOs de referencia
+
+### CartDto
+```csharp
+public record CartDto(
+    string CartToken, IReadOnlyList<CartItemDto> Items,
+    decimal Subtotal, string CurrencyCode
+);
+
+public record CartItemDto(
+    Guid ProductId, string ProductName, string ProductSlug,
+    decimal UnitPrice,  // leido en vivo desde Product, no es un snapshot
+    int Quantity, decimal Subtotal
+);
+```
 
 ### ProductAdminDto
 ```csharp

@@ -260,6 +260,116 @@
       ]
     },
     {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "Get Cart",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Cart-Token",
+                "value": "{{cartToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Cart Item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Cart-Token",
+                "value": "{{cartToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "items"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"quantity\": 2\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Cart Item Quantity",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Cart-Token",
+                "value": "{{cartToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart/items/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "items",
+                "{{productId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 5\n}"
+            }
+          }
+        },
+        {
+          "name": "Remove Cart Item",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Cart-Token",
+                "value": "{{cartToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cart/items/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cart",
+                "items",
+                "{{productId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Catalog (Admin)",
       "item": [
         {
@@ -481,94 +591,6 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"staff@mitienda.com\",\n  \"name\": \"Ana Gomez\",\n  \"role\": \"staff\"\n}"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Cart",
-      "item": [
-        {
-          "name": "Add Cart Item",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/cart/items",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "cart",
-                "items"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"cartToken\": \"{{cartToken}}\",\n  \"productId\": \"{{productId}}\",\n  \"quantity\": 1\n}"
-            }
-          }
-        },
-        {
-          "name": "Update Cart Item",
-          "request": {
-            "method": "PUT",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/cart/items/{{id}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "cart",
-                "items",
-                "{{id}}"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"quantity\": 2\n}"
-            }
-          }
-        },
-        {
-          "name": "Delete Cart Item",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/cart/items/{{id}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "cart",
-                "items",
-                "{{id}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Cart",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/cart?cartToken={{cartToken}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "cart"
-              ],
-              "query": [
-                {
-                  "key": "cartToken",
-                  "value": "{{cartToken}}"
-                }
-              ]
             }
           }
         }

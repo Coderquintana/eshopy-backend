@@ -6,8 +6,8 @@
 > **Smoke test real (2026-07-26)**: `docker compose up -d` + migraciones + API corriendo, flujo
 > completo probado contra SQL Server y Keycloak reales (no fakes): onboarding → Keycloak crea el
 > Owner → activacion SUPERADMIN → `GET/PUT /api/store` → crear un Product real → invitar un Staff
-> (F4-05). Encontro y arreglo 2 bugs que los tests con fakes no podian atrapar — ver C-39/C-40 en
-> BACKLOG.md.
+> (F4-05) → Carrito completo (F6, add/acumular/get/update/delete). Encontro y arreglo 2 bugs que los
+> tests con fakes no podian atrapar (Tenants) — ver C-39/C-40 en BACKLOG.md; Carrito paso sin bugs.
 
 ---
 
@@ -21,7 +21,7 @@
 | **Store** | ? Implementado | `EfStoreService`/`IStoreRepository` reales (reemplazan `InMemoryStoreService`). `GET/PUT /api/store` funcionando. `CurrencyCode` inmutable tras creacion |
 | **Tenants** | ? Implementado (Fase 4) | `Tenant`/`TenantUser` reales, maquina de estados completa. `EfTenantResolver` reemplaza el diccionario en memoria (cache ~60s por subdominio). Onboarding (`POST /api/onboarding/tenants`) crea Tenant+Store+Owner(Keycloak)+Subscription atomicamente. Activacion manual SUPERADMIN implementada; webhook de pago sigue en Fase 8. Invitar Admin/Staff (`GET/POST /api/admin/users`) implementado y verificado en vivo (F4-05) |
 | **Subscriptions** | ?? Minimo (Fase 4) | Entidad y maquina de estados completas, se crea en el onboarding. Sin integracion de pago real: `PriceAmount` siempre 0 (precios TBD), sin renovacion automatica ni webhook — todo eso es Fase 8 |
-| **Carts** | ? No iniciado | Fase 6 |
+| **Carts** | ? Implementado (Fase 6) | `Cart`/`CartItem` — primer agregado con coleccion hija encapsulada (`Items` via backing field). `GET/POST/PUT/DELETE /api/cart[/items/{productId}]`, anonimo. Sin precio en `CartItem` (se lee en vivo). Falta solo F6-04 (limpieza de carritos expirados, no bloqueante) |
 | **Orders** | ? No iniciado | Fase 7 |
 | **Payments** | ? No iniciado | Fase 8 |
 
@@ -93,12 +93,27 @@ Estado: **? Completo**
 
 ---
 
+## Carts
+
+- Domain: `EShopy.Domain/Carts/{Cart,CartItem}.cs` — `Cart` es agregado raiz, `Items` es
+  `IReadOnlyList<CartItem>` respaldado por un campo privado (`_items`), toda mutacion pasa por
+  metodos de `Cart` (`AddItem`/`UpdateItemQuantity`/`RemoveItem`).
+- Application: `EShopy.Application/Carts/` (`ICartRepository`, Commands `Add/UpdateQuantity/Remove`,
+  Query `GetCart`, `CartMappings` — arma el DTO uniendo `Cart` con `Product` en vivo, sin snapshot de precio).
+- API: `EShopy.Api/Controllers/Public/CartController.cs` (`AllowAnonymous`, header `X-Cart-Token`).
+- Infraestructura: `EShopy.Infrastructure/Carts/EfCartRepository.cs`,
+  `Persistence/Configurations/{Cart,CartItem}Configuration.cs` (primera coleccion encapsulada del
+  proyecto — `Navigation(...).HasField("_items").UsePropertyAccessMode(PropertyAccessMode.Field)`).
+  `IProductRepository.GetByIdsAsync` (batch, nuevo) evita N+1 al armar el DTO del carrito.
+
+---
+
 ## Tests
 
 | Suite | Tests | Estado |
 |---|---|---|
-| `EShopy.Tests.Unit` | 70 tests | ? (incluye `TenantTests`, `SubscriptionTests`, `TenantValidatorTests`, `InviteTenantUserCommandValidatorTests`, `SubdomainResolverTests`) |
-| `EShopy.Tests.Integration` | 10 tests | ? Incluye seguridad 401/403/200, onboarding y flujo de invitacion de usuarios end-to-end |
+| `EShopy.Tests.Unit` | 85 tests | ? (incluye `CartTests`, `CartValidatorTests`, `TenantTests`, `SubscriptionTests`, `TenantValidatorTests`, `InviteTenantUserCommandValidatorTests`, `SubdomainResolverTests`) |
+| `EShopy.Tests.Integration` | 13 tests | ? Incluye seguridad 401/403/200, onboarding, invitacion de usuarios y flujo de carrito end-to-end |
 
 Nuevos tests de seguridad:
 
@@ -120,6 +135,7 @@ Soporte de tests:
 - `EShopy.Tests.Integration/Support/InMemoryProductRepository.cs`
 - `EShopy.Tests.Integration/Support/InMemoryTenantsState.cs` + fakes de Tenants/Store/Subscriptions/Keycloak
   (mismo patron que `InMemoryProductRepository`, sin DB/Keycloak real)
+- `EShopy.Tests.Integration/Support/InMemoryCartRepository.cs`
 
 ---
 
@@ -132,6 +148,7 @@ Soporte de tests:
   - `20260207042545_AddAppEntityBaseToProducts`
   - `20260221000601_AddStoreIdToProducts`
   - `20260726164030_AddTenantsStoresSubscriptions`
+  - `20260726183727_AddCartsCartItems`
 - Si se elimina manualmente una tabla, EF no la recrea al iniciar mientras `__EFMigrationsHistory` siga marcado; ejecutar `dotnet ef database update` con historial consistente. (B-02 sigue abierto: no hay auto-migracion controlada en el arranque)
 
 ---

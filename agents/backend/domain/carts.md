@@ -82,5 +82,10 @@ public record CartItemDto(
 
 ## Estado de implementación
 
-❌ **No implementado.** Planificado en Fase 6 del backlog. Ver `workflows/checkout-flow.md` para el
-flujo completo (Carrito → Pedido → Pago).
+✅ **Implementado y verificado en vivo** (2026-07-26) contra SQL Server real: acumular cantidad,
+listar, actualizar, eliminar — todo probado end-to-end, sin bugs. `Cart` es el primer agregado del
+proyecto con una coleccion hija encapsulada (`Items` de solo lectura respaldada por un campo privado,
+mapeada con `PropertyAccessMode.Field` en `CartConfiguration`).
+
+Ver `workflows/checkout-flow.md` para el flujo completo (Carrito → Pedido → Pago). Fase 7 (Pedidos)
+es el siguiente paso — depende de Cart.
