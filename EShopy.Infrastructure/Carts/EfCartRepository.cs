@@ -21,4 +21,10 @@ public sealed class EfCartRepository(EShopyDbContext db) : ICartRepository
   }
 
   public Task SaveChangesAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
+
+  public async Task DeleteAsync(Cart cart, CancellationToken ct)
+  {
+    db.Carts.Remove(cart);
+    await db.SaveChangesAsync(ct);
+  }
 }

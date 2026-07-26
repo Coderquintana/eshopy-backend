@@ -1,5 +1,8 @@
 using EShopy.Application.Common.Context;
 using EShopy.Domain.Carts;
+using EShopy.Domain.Common.Counters;
+using EShopy.Domain.Orders;
+using EShopy.Domain.Payments;
 using EShopy.Domain.Products;
 using EShopy.Domain.Subscriptions;
 using EShopy.Domain.Tenants;
@@ -21,6 +24,9 @@ public sealed class EShopyDbContext(
   public DbSet<TenantUser> TenantUsers => Set<TenantUser>();
   public DbSet<Subscription> Subscriptions => Set<Subscription>();
   public DbSet<Cart> Carts => Set<Cart>();
+  public DbSet<Order> Orders => Set<Order>();
+  public DbSet<Payment> Payments => Set<Payment>();
+  public DbSet<TenantCounter> TenantCounters => Set<TenantCounter>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
@@ -31,6 +37,10 @@ public sealed class EShopyDbContext(
     modelBuilder.ApplyConfiguration(new SubscriptionConfiguration());
     modelBuilder.ApplyConfiguration(new CartConfiguration());
     modelBuilder.ApplyConfiguration(new CartItemConfiguration());
+    modelBuilder.ApplyConfiguration(new OrderConfiguration());
+    modelBuilder.ApplyConfiguration(new OrderItemConfiguration());
+    modelBuilder.ApplyConfiguration(new PaymentConfiguration());
+    modelBuilder.ApplyConfiguration(new TenantCounterConfiguration());
 
     // Global Query Filter de multi-tenancy.
     // Si TenantId no está disponible (e.g. migrations en design-time, o rutas SUPERADMIN excluidas
@@ -54,6 +64,19 @@ public sealed class EShopyDbContext(
       .HasQueryFilter(s => tenantContext.TenantId == null || s.TenantId == tenantContext.TenantId);
 
     modelBuilder.Entity<Cart>()
+      .HasQueryFilter(c => tenantContext.TenantId == null || c.TenantId == tenantContext.TenantId);
+
+    // Sin filtro: el webhook de pagos busca Payment por (Provider, ProviderPaymentId) sin tenant
+    // conocido de antemano (ver domain/payments.md). Con TenantId null el filtro es transparente,
+    // asi que Order y Payment SI participan del filtro — el webhook simplemente corre con
+    // TenantContext.TenantId == null hasta encontrar el Payment y recien ahi fija el tenant.
+    modelBuilder.Entity<Order>()
+      .HasQueryFilter(o => tenantContext.TenantId == null || o.TenantId == tenantContext.TenantId);
+
+    modelBuilder.Entity<Payment>()
+      .HasQueryFilter(p => tenantContext.TenantId == null || p.TenantId == tenantContext.TenantId);
+
+    modelBuilder.Entity<TenantCounter>()
       .HasQueryFilter(c => tenantContext.TenantId == null || c.TenantId == tenantContext.TenantId);
   }
 }

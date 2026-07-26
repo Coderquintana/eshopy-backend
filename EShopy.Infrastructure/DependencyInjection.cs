@@ -2,8 +2,12 @@ using EShopy.Application.Carts;
 using EShopy.Application.Carts.Commands;
 using EShopy.Application.Carts.Queries;
 using EShopy.Application.Common.Identity;
+using EShopy.Application.Common.Payments;
 using EShopy.Application.Common.Stores;
 using EShopy.Application.Common.Tenants;
+using EShopy.Application.Orders;
+using EShopy.Application.Orders.Commands;
+using EShopy.Application.Orders.Queries;
 using EShopy.Application.Products;
 using EShopy.Application.Products.Commands;
 using EShopy.Application.Products.Queries;
@@ -13,6 +17,8 @@ using EShopy.Application.Tenants.Commands;
 using EShopy.Application.Tenants.Queries;
 using EShopy.Infrastructure.Carts;
 using EShopy.Infrastructure.Identity;
+using EShopy.Infrastructure.Orders;
+using EShopy.Infrastructure.Payments;
 using EShopy.Infrastructure.Persistence;
 using EShopy.Infrastructure.Products;
 using EShopy.Infrastructure.Stores;
@@ -56,6 +62,11 @@ public static class DependencyInjection
     // Carts
     services.AddScoped<ICartRepository, EfCartRepository>();
 
+    // Orders / Payments
+    services.AddScoped<IOrderRepository, EfOrderRepository>();
+    services.AddScoped<ICheckoutWriter, EfCheckoutWriter>();
+    services.AddScoped<IPaymentProviderAdapter, FakePaymentProviderAdapter>();
+
     // Handlers — Tenants / Store
     services.AddScoped<CreateTenantCommandHandler>();
     services.AddScoped<ActivateTenantCommandHandler>();
@@ -81,6 +92,12 @@ public static class DependencyInjection
     services.AddScoped<UpdateCartItemQuantityCommandHandler>();
     services.AddScoped<RemoveCartItemCommandHandler>();
     services.AddScoped<GetCartQueryHandler>();
+
+    // Handlers — Orders / Checkout
+    services.AddScoped<CheckoutCommandHandler>();
+    services.AddScoped<ChangeOrderStatusCommandHandler>();
+    services.AddScoped<GetOrderByIdQueryHandler>();
+    services.AddScoped<GetOrdersQueryHandler>();
 
     return services;
   }
