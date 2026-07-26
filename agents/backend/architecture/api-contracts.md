@@ -38,7 +38,7 @@
 | `TENANT_SUSPENDED` | 403 | El tenant esta suspendido (mora) — bloqueado por `TenantResolutionMiddleware` |
 | `TENANT_CANCELLED` | 403 | El tenant fue cancelado — bloqueado por `TenantResolutionMiddleware` |
 | `EXTERNAL_SERVICE_ERROR` | 502 | Falla al comunicarse con un servicio externo (ej. Keycloak Admin API) |
-| `ORDER_INVALID_STATE` | 409 | Transición de orden no permitida (diseño, no implementado) |
+| `ORDER_INVALID_STATE` | 409 | Transición de orden/pago no permitida |
 | `PAYMENT_WEBHOOK_INVALID` | 401 | Webhook con firma inválida (diseño, no implementado) |
 | `PAYMENT_PROVIDER_ERROR` | 502 | Error al comunicarse con el provider de pago (diseño, no implementado) |
 | `GENERIC_ERROR` | 500 | Error interno no controlado |
@@ -392,22 +392,83 @@ Quita un item del carrito.
 
 ---
 
-## Orders endpoints (diseño, no implementado)
+## Checkout
 
-| Método | Ruta | Auth | Descripción |
-|---|---|---|---|
-| POST | `/api/checkout` | Anónimo | Crear Order desde carrito |
-| GET | `/api/orders` | OrdersRead | Listar pedidos (admin) |
-| GET | `/api/orders/{id}` | OrdersRead | Detalle de pedido |
-| PATCH | `/api/orders/{id}/status` | OrdersWrite | Actualizar estado |
+### POST /api/checkout
+Crea el `Order` a partir del carrito actual e inicia el pago. Usa el header `X-Cart-Token`, igual que
+el carrito — no hay `cartToken` en el body.
+
+**Auth**: Anónimo
+
+**Request:**
+```
+Headers: X-Cart-Token: <uuid>
+```
+```json
+{
+  "buyerEmail": "comprador@email.com",
+  "buyerName": "María García",
+  "shippingAddress": "Av. España 1234, Asunción"
+}
+```
+> `shippingAddress` es opcional (nullable).
+
+**Response 200:** `CheckoutResultDto` (ver DTOs de referencia).
+
+**Errores**: `VALIDATION_ERROR` (400, email invalido, carrito vacio), `NOT_FOUND` (404, no hay Store
+configurado), `PRODUCT_NOT_AVAILABLE` (409, un item del carrito ya no esta Active),
+`CONCURRENCY_CONFLICT` (409, muy raro — solo si se agotan los reintentos de `OrderNumber` bajo
+contencion extrema, ver `domain/orders.md`).
+
+---
+
+## Orders — Admin endpoints
+
+### GET /api/orders
+Lista pedidos del tenant con paginación SQL.
+
+**Auth**: `OrdersRead`
+**Query**: `?page=1&pageSize=20`
+
+**Response 200:** `PagedResult<OrderAdminDto>`.
+
+---
+
+### GET /api/orders/{id:guid}
+Detalle de un pedido por ID.
+
+**Auth**: `OrdersRead`
+**Response 200**: `OrderAdminDto`
+**Errores**: `NOT_FOUND` (404)
+
+---
+
+### PATCH /api/orders/{id:guid}/status
+Cambia el estado del pedido manualmente (ej. cancelar, marcar reembolsado).
+
+**Auth**: `OrdersWrite`
+
+**Request body:**
+```json
+{ "status": 1 }
+```
+> Valores: 0=PendingPayment, 1=Paid, 2=Cancelled, 3=Refunded. Transiciones validas: ver
+> `domain/orders.md`.
+
+**Response 200**: `OrderAdminDto` con nuevo estado.
+**Errores**: `NOT_FOUND` (404), `ORDER_INVALID_STATE` (409, transición no permitida)
 
 ---
 
 ## Payments endpoints (diseño, no implementado)
 
+> `Payment` se crea internamente dentro de `POST /api/checkout` (ver arriba) — no existe un endpoint
+> publico para iniciar un pago por separado. Lo que sigue sin implementar (Fase 8) es el webhook y los
+> adapters reales de Bancard/PagoPar; hoy `IPaymentProviderAdapter` solo tiene una implementacion
+> (`FakePaymentProviderAdapter`, dev-only, siempre exitosa).
+
 | Método | Ruta | Auth | Descripción |
 |---|---|---|---|
-| POST | `/api/payments` | — | Iniciar pago (retorna `paymentUrl`) |
 | POST | `/api/payments/webhooks/{provider}` | Firma provider | Webhook idempotente |
 
 ---
@@ -482,6 +543,30 @@ public record TenantUserDto(
 public record StoreProfileDto(
     Guid StoreId, string Name, string CurrencyCode, string Timezone,
     string? PrimaryColor, string? LogoUrl, string? BackgroundColor, string? Description
+);
+```
+
+### CheckoutResultDto
+```csharp
+public record CheckoutResultDto(
+    Guid OrderId, int OrderNumber, decimal TotalAmount,
+    string CurrencyCode, string PaymentUrl
+);
+```
+
+### OrderAdminDto
+```csharp
+public record OrderAdminDto(
+    Guid Id, int OrderNumber, string Status,
+    string BuyerEmail, string BuyerName, string? ShippingAddress,
+    decimal TotalAmount, string CurrencyCode,
+    IReadOnlyList<OrderItemDto> Items,
+    DateTime CreatedAtUtc, DateTime? UpdatedAtUtc
+);
+
+public record OrderItemDto(
+    Guid ProductId, string ProductName, string? ProductSku,
+    decimal UnitPrice, int Quantity, decimal Subtotal
 );
 ```
 

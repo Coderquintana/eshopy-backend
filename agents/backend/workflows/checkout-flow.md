@@ -3,6 +3,10 @@
 > Flujo completo: Carrito → Pedido → Pago → Confirmación.
 > Redefinido 2026-07-26 contra los patrones reales de Tenants/Store. Ver `domain/carts.md`,
 > `domain/orders.md` y `domain/payments.md` para el detalle de cada pieza.
+>
+> **Estado real (2026-07-26): Pasos 1-2 (Carrito → Checkout) implementados y verificados en vivo.**
+> Del Paso 3 en adelante (pago en provider externo real, webhook de confirmación) sigue siendo diseño,
+> no implementado — Fase 8. Ver tabla "Estado de implementación" al final del doc.
 
 ## Actores
 
@@ -87,10 +91,12 @@ Headers: X-Cart-Token: <uuid>
 **Endpoint**: `POST /api/checkout`
 **Auth**: Anónimo
 
-**Request:**
+**Request** (`cartToken` va en el header `X-Cart-Token`, igual que en el carrito — no en el body):
+```
+Headers: X-Cart-Token: <uuid>
+```
 ```json
 {
-  "cartToken": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
   "buyerEmail": "comprador@email.com",
   "buyerName": "María García",
   "shippingAddress": "Av. España 1234, Asunción"
@@ -114,7 +120,7 @@ para el porque de este orden especifico):
 9. Retornar { orderId, orderNumber, totalAmount, paymentUrl }
 ```
 
-**Response 201:**
+**Response 200:**
 ```json
 {
   "orderId": "...",
@@ -124,6 +130,9 @@ para el porque de este orden especifico):
   "paymentUrl": "https://pago.bancard.com.py/..."
 }
 ```
+
+> Hoy `paymentUrl` es sintetica (`https://fake-payment.local/pay/...`), generada por
+> `FakePaymentProviderAdapter` — no hay Bancard/PagoPar real todavia (Fase 8).
 
 ## Paso 3: Pago en provider externo
 
@@ -172,9 +181,9 @@ El frontend consulta `GET /api/orders/{orderId}` para obtener el estado actual.
 
 | Componente | Estado |
 |---|---|
-| Cart | ❌ No implementado (Fase 6). Diseño redefinido 2026-07-26, ver `domain/carts.md` |
-| Checkout / Order | ❌ No implementado (Fase 7). Diseño redefinido 2026-07-26, ver `domain/orders.md` |
-| Payment / Webhook | ❌ No implementado (Fase 8). Diseño redefinido 2026-07-26, ver `domain/payments.md` |
+| Cart | ✅ Implementado y verificado en vivo (Fase 6), ver `domain/carts.md` |
+| Checkout / Order | ✅ Implementado y verificado en vivo (Fase 7, 2026-07-26), incluye el `Payment` inicial (`FakePaymentProviderAdapter`). Ver `domain/orders.md` — incluye el bug de concurrencia real encontrado y corregido en el smoke test |
+| Payment / Webhook | ❌ No implementado (Fase 8): webhook, idempotencia (`PaymentEventsProcessed`), adapters reales Bancard/PagoPar. Ver `domain/payments.md` |
 | Productos (catálogo público) | ✅ Implementado |
 | Store info | ✅ Implementado (`GET/PUT /api/store` reales, ya no hardcodeado) |
 | Tenant / Onboarding / Usuarios | ✅ Implementado (Fase 4 completa) |

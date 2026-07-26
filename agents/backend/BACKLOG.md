@@ -2,7 +2,7 @@
 
 > Estado al 2026-07-26. Reauditado contra el codigo real en HEAD (d531917, ultimo commit 2026-02-20) tras una pausa de ~5 meses.
 > B-01, B-03 y P-01 estaban marcados como pendientes pero el codigo ya los resuelve desde el commit `35cebe9` (refactor CQRS) — se movieron a COMPLETADAS. Se agrego una seccion nueva de deuda tecnica de arquitectura (D-xx) que no estaba trackeada; D-02 y D-04 se implementaron y verificaron el mismo dia. D-01 (Unit of Work explicito) se probo y se revirtio a proposito — ver nota debajo de la tabla.
-> Mismo dia: Fase 4 completa (Tenants + Store + Subscription minima) con infra Docker Compose para SQL Server + Keycloak. Ver C-31 en adelante.
+> Mismo dia: Fase 4 completa (Tenants + Store + Subscription minima) con infra Docker Compose para SQL Server + Keycloak. Ver C-31 en adelante. Fase 6 (Carrito, C-43) y Fase 7 (Pedidos + minimo de Pagos, C-44..C-46) tambien completadas el mismo dia; C-45 documenta un bug real de concurrencia encontrado y corregido en vivo.
 
 ---
 
@@ -57,20 +57,11 @@ _(vacio)_
 |---|---|---|
 | F6-04 | Job limpieza carritos expirados | Background job periodico — unico pendiente de la fase, no bloqueante |
 
-### Fase 7 - Pedidos — diseño redefinido 2026-07-26, ver `domain/orders.md`
-| # | Tarea | Descripcion |
-|---|---|---|
-| F7-01 | OrderEntity + OrderItemEntity | Snapshot de precio en item. `Order.OrderNumber` se asigna despues de crear (`AssignOrderNumber`), no en el factory |
-| F7-02 | `ICheckoutWriter` | Writer angosto multi-agregado (Order+OrderItems+Payment+TenantCounter). Todo trackeado por EF, un solo `SaveChangesAsync` — sin transaccion explicita ni SQL crudo |
-| F7-03 | OrderNumber con TenantCounters | Secuencial por tenant, sin SQL crudo — `CurrentValue` como concurrency token EF + reintento, generado DENTRO de `ICheckoutWriter` |
-| F7-04 | Transiciones OrderStatus | Controladas segun tabla de dominio |
-| F7-05 | Orden de llamada al provider de pago | `adapter.InitiateAsync` ANTES de la escritura local (mismo principio que Keycloak en onboarding), usando `order.Id` como referencia — no `OrderNumber` |
+### Fase 7 - Pedidos — completa, ver COMPLETADAS C-44..C-46 y `domain/orders.md`
 
-### Fase 8 - Pagos — diseño redefinido 2026-07-26, ver `domain/payments.md`
+### Fase 8 - Pagos — F8-01/F8-02 completos (minimo, ver C-44), resto pendiente, ver `domain/payments.md`
 | # | Tarea | Descripcion |
 |---|---|---|
-| F8-01 | PaymentEntity + IPaymentProviderAdapter | Contrato de adaptador |
-| F8-02 | `FakePaymentProviderAdapter` | Dev-only, siempre exitoso — permite probar el flujo completo sin credenciales reales. Se implementa junto con F8-01, antes que los adapters reales |
 | F8-03 | BancardAdapter | Integracion con Bancard API — bloqueado hasta tener la documentacion real del provider |
 | F8-04 | PagoParAdapter | Integracion con PagoPar API — idem |
 | F8-05 | Webhook endpoint idempotente | `POST /api/payments/webhooks/{provider}`. Resuelve el tenant por `(Provider, ProviderPaymentId)` sin subdominio — requiere `TenantContext.Set(tenantId, subdomain = null)` |
@@ -140,3 +131,6 @@ _(vacio)_
 | C-41 | F4-05 Invitar Admin/Staff (`GET/POST /api/admin/users`) — `IKeycloakUserProvisioner` generalizado a cualquier `TenantUserRole` (no solo Owner); verificado en vivo contra Keycloak/SQL Server reales | Tenants | 2026-07-26 |
 | C-42 | `PagedResult<T>.TotalPages` (computado) — `api-contracts.md` ya lo documentaba en toda respuesta paginada, el DTO no lo tenia | Core | 2026-07-26 |
 | C-43 | F6-01/02/03 `Cart` + `CartItem` completos — primer agregado del proyecto con coleccion hija encapsulada (`Items` respaldado por campo privado, `PropertyAccessMode.Field`). `GET/POST/PUT/DELETE /api/cart[/items/{productId}]`, `IProductRepository.GetByIdsAsync` (batch, evita N+1 en el DTO). Verificado en vivo: acumular, listar, actualizar, eliminar, contra SQL Server real | Carts | 2026-07-26 |
+| C-44 | F7-01..F7-05 Fase 7 (Pedidos) completa: `Order`/`OrderItem` (coleccion encapsulada, mismo patron que Cart), `ICheckoutWriter` (writer angosto Order+Payment+TenantCounter, sin SQL crudo), `TenantCounter` con `CurrentValue` como concurrency token EF para `OrderNumber` atomico. Incluye F8-01/F8-02 minimos como prerequisito: `Payment` entidad + `IPaymentProviderAdapter.InitiateAsync` + `FakePaymentProviderAdapter`. `POST /api/checkout` (anonimo, header `X-Cart-Token`) + `GET /api/orders[/{id}]` + `PATCH /api/orders/{id}/status` (admin, `OrdersRead`/`OrdersWrite`). FK circular Order↔Payment resuelta dando la FK real solo a `Payments.OrderId` | Orders/Payments | 2026-07-26 |
+| C-45 | Bug real (encontrado en smoke test de concurrencia contra SQL Server real, 25 checkouts simultaneos): el retry loop de `EfCheckoutWriter` solo atrapaba `DbUpdateConcurrencyException`, pero bajo contencion real el perdedor de la carrera a veces recibe una violacion de indice unico cruda (`SqlException` 2601 sobre `UQ_Orders_TenantId_OrderNumber`) en su lugar — el `UPDATE` del counter puede afectar 0 filas sin abortar el resto del batch, dejando que el `INSERT` de `Order` choque contra un `OrderNumber` ya tomado. Fix: atrapar tambien `DbUpdateException` cuando envuelve `SqlException` 2601/2627 y reintentar igual. Bug secundario relacionado: `Order.AssignOrderNumber` tiraba si se llamaba dos veces, lo que rompia cualquier reintento sobre la misma instancia — se hizo idempotente a proposito. Verificado: 0 duplicados, 0 gaps, contador consistente tras el fix | Orders | 2026-07-26 |
+| C-46 | Tests Fase 7: `OrderTests`/`PaymentTests` (dominio, incluye todas las transiciones validas/invalidas), `CheckoutCommandValidatorTests`, `CheckoutFlowTests` (integracion end-to-end con fakes: checkout completo, email invalido, transicion de estado invalida) — 115 tests unitarios, 17 de integracion, todos verdes | Orders/Payments | 2026-07-26 |

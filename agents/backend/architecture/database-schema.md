@@ -29,13 +29,13 @@ Todas las tablas multi-tenant incluyen estas columnas:
 | `TenantUsers` | Multi-tenant | ✅ Migración creada |
 | `Products` | Multi-tenant | ✅ Migración creada |
 | `ProductImages` | Multi-tenant | ❌ Pendiente |
-| `Carts` | Multi-tenant | ❌ Pendiente |
-| `CartItems` | Multi-tenant | ❌ Pendiente |
-| `Orders` | Multi-tenant | ❌ Pendiente |
-| `OrderItems` | Multi-tenant (no AppEntity) | ❌ Pendiente |
-| `Payments` | Multi-tenant | ❌ Pendiente |
-| `PaymentEventsProcessed` | Multi-tenant | ❌ Pendiente |
-| `TenantCounters` | Multi-tenant | ❌ Pendiente |
+| `Carts` | Multi-tenant | ✅ Migración creada (`AddCartsCartItems`) |
+| `CartItems` | Multi-tenant (no AppEntity) | ✅ Migración creada |
+| `Orders` | Multi-tenant | ✅ Migración creada (`AddOrdersPaymentsTenantCounters`) |
+| `OrderItems` | Multi-tenant (no AppEntity) | ✅ Migración creada |
+| `Payments` | Multi-tenant | ✅ Migración creada (solo lo minimo: sin webhook/idempotencia, ver `domain/payments.md`) |
+| `PaymentEventsProcessed` | Multi-tenant | ❌ Pendiente (Fase 8, webhook) |
+| `TenantCounters` | Multi-tenant (PK compuesta, sin `Id`) | ✅ Migración creada |
 | `AuditLogs` | Multi-tenant | ❌ Pendiente |
 
 ## Tabla: Products (implementada)
@@ -127,34 +127,81 @@ Entidad global: no lleva `TenantId` ni las columnas de `AppEntity` (no participa
 Índice: `UQ_Subscriptions_TenantId_NonCancelled` (`TenantId`, UNIQUE filtrado `WHERE [Status] <> 4`) —
 enforced a nivel DB: no puede haber mas de una suscripcion no cancelada por tenant.
 
-## Tabla: Orders (diseño)
+## Tabla: Orders (implementada)
 
 | Columna | Tipo | Nullable | Notas |
 |---|---|---|---|
 | `Id` | `uniqueidentifier` | No | PK |
 | `TenantId` | `uniqueidentifier` | No | — |
-| `StoreId` | `uniqueidentifier` | No | — |
-| `OrderNumber` | `int` | No | Secuencial por tenant. UNIQUE con TenantId |
-| `Status` | `int` | No | 0=PendingPayment, 1=Paid, 2=Cancelled, 3=Refunded |
+| `StoreId` | `uniqueidentifier` | No | FK a Stores (`FK_Orders_Stores_StoreId`) |
+| `OrderNumber` | `int` | No | Secuencial por tenant, asignado por `ICheckoutWriter`. UNIQUE con TenantId |
+| `Status` | `tinyint` | No | 0=PendingPayment, 1=Paid, 2=Cancelled, 3=Refunded |
 | `BuyerEmail` | `nvarchar(200)` | No | — |
 | `BuyerName` | `nvarchar(200)` | No | — |
-| `TotalAmount` | `decimal(18,2)` | No | Snapshot |
-| `CurrencyCode` | `nvarchar(3)` | No | — |
+| `ShippingAddress` | `nvarchar(1000)` | Sí | — |
+| `TotalAmount` | `decimal(18,2)` | No | CHECK >= 0. Snapshot, suma de OrderItems |
+| `CurrencyCode` | `char(3)` | No | — |
 | `CartToken` | `nvarchar(100)` | No | — |
-| `PaymentId` | `uniqueidentifier` | Sí | FK a Payments |
+| `PaymentId` | `uniqueidentifier` | Sí | **Sin FK enforced** a proposito — la FK real vive en `Payments.OrderId` (ver tabla abajo). Un FK real en ambas direcciones seria circular, EF no puede resolver el orden de insercion en un solo `SaveChangesAsync` |
 | + columnas AppEntity | | | — |
 
 ### Índices de Orders
 
 | Índice | Tipo |
 |---|---|
-| `(TenantId, OrderNumber)` | UNIQUE |
-| `(TenantId, Status)` | IX |
+| `UQ_Orders_TenantId_OrderNumber` (`TenantId`, `OrderNumber`) | UNIQUE |
+| `IX_Orders_TenantId_Status` | IX |
+| `IX_Orders_TenantId_BuyerEmail` | IX |
 
-## Tabla: TenantCounters (para OrderNumber)
+## Tabla: OrderItems (implementada)
 
-> Redefinido 2026-07-26: sin SQL crudo. Entidad EF normal, atomicidad via concurrency token +
-> reintento — no `UPDLOCK`/`ROWLOCK`. Ver `domain/orders.md` "Escritura atomica (ICheckoutWriter)".
+Snapshot inmutable, no hereda `AppEntity` (igual que `CartItems`, se resuelve via `OrderId`).
+
+| Columna | Tipo | Nullable | Notas |
+|---|---|---|---|
+| `Id` | `uniqueidentifier` | No | PK |
+| `OrderId` | `uniqueidentifier` | No | FK a Orders, `Cascade` |
+| `ProductId` | `uniqueidentifier` | No | FK a Products, `Restrict` — referencia historica |
+| `ProductName` | `nvarchar(300)` | No | Snapshot al checkout |
+| `ProductSku` | `nvarchar(64)` | Sí | Snapshot al checkout |
+| `UnitPrice` | `decimal(18,2)` | No | CHECK >= 0. Snapshot al checkout |
+| `Quantity` | `int` | No | CHECK >= 1 |
+
+`Subtotal` (`UnitPrice * Quantity`) es calculado en dominio, `Ignore()` en EF — nunca persistido, nunca
+puede desincronizarse.
+
+## Tabla: Payments (implementada, subconjunto minimo)
+
+> Solo lo que Checkout necesita hoy: crear el `Payment` inicial. Sin webhook ni idempotencia — eso
+> agrega `PaymentEventsProcessed` y mas columnas en Fase 8, ver `domain/payments.md`.
+
+| Columna | Tipo | Nullable | Notas |
+|---|---|---|---|
+| `Id` | `uniqueidentifier` | No | PK |
+| `TenantId` | `uniqueidentifier` | No | — |
+| `OrderId` | `uniqueidentifier` | No | FK a Orders (`FK_Payments_Orders_OrderId`, `Restrict`) — la direccion real de la relacion circular con `Orders.PaymentId` |
+| `Status` | `tinyint` | No | 0=Initiated, 1=Authorized, 2=Captured, 3=Failed, 4=Refunded |
+| `Provider` | `nvarchar(50)` | No | `'fake'` hoy — Bancard/PagoPar en Fase 8 |
+| `ProviderPaymentId` | `nvarchar(200)` | Sí | — |
+| `ProviderPaymentUrl` | `nvarchar(1000)` | Sí | — |
+| `Amount` | `decimal(18,2)` | No | CHECK >= 0 |
+| `CurrencyCode` | `char(3)` | No | — |
+| `ErrorCode` / `ErrorMessage` | `nvarchar(100)` / `nvarchar(1000)` | Sí | — |
+| + columnas AppEntity | | | — |
+
+### Índices de Payments
+
+| Índice | Tipo |
+|---|---|
+| `IX_Payments_OrderId` | IX |
+| `IX_Payments_Provider_ProviderPaymentId` (`Provider`, `ProviderPaymentId`) WHERE `ProviderPaymentId IS NOT NULL` | IX filtrado — el webhook (Fase 8) buscara por esta combinacion |
+
+## Tabla: TenantCounters (para OrderNumber, implementada)
+
+> Sin SQL crudo. Entidad EF normal, atomicidad via concurrency token + reintento — no
+> `UPDLOCK`/`ROWLOCK`. Ver `domain/orders.md` "Escritura atomica (ICheckoutWriter)" para el bug real
+> de concurrencia encontrado y corregido el 2026-07-26 (el reintento tambien debe atrapar violaciones
+> de indice unico, no solo `DbUpdateConcurrencyException`).
 
 | Columna | Tipo | Nullable | Notas |
 |---|---|---|---|
@@ -162,7 +209,7 @@ enforced a nivel DB: no puede haber mas de una suscripcion no cancelada por tena
 | `CounterType` | `nvarchar(50)` | No | `'OrderNumber'` (extensible a otros contadores por tenant a futuro) |
 | `CurrentValue` | `int` | No | `IsConcurrencyToken()` en la configuracion EF — asi el `UPDATE` generado por EF incluye `WHERE CurrentValue = @valorLeido` automaticamente |
 
-## Tabla: Carts
+## Tabla: Carts (implementada)
 
 | Columna | Tipo | Nullable | Notas |
 |---|---|---|---|
@@ -178,7 +225,7 @@ enforced a nivel DB: no puede haber mas de una suscripcion no cancelada por tena
 |---|---|
 | `(TenantId, CartToken)` | UNIQUE — no `CartToken` solo (ver `domain/carts.md`) |
 
-## Tabla: CartItems
+## Tabla: CartItems (implementada)
 
 | Columna | Tipo | Nullable | Notas |
 |---|---|---|---|

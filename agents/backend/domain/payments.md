@@ -3,6 +3,13 @@
 > Entidades `Payment` + `PaymentEventsProcessed`: transacciones y webhooks idempotentes.
 > Redefinido 2026-07-26: agrega como el webhook resuelve el tenant sin subdominio (no existia
 > respuesta a esto en el diseño original) y acota el alcance de los adapters reales.
+>
+> **Implementado parcialmente 2026-07-26** (Fase 7, como prerequisito de Checkout): la entidad
+> `Payment` y un puerto minimo (`IPaymentProviderAdapter.InitiateAsync` + `FakePaymentProviderAdapter`)
+> ya existen y estan verificados en vivo — ver `domain/orders.md`. Todo lo demas en este doc (webhook,
+> `PaymentEventsProcessed`, `ValidateWebhookSignature`/`ParseWebhookAsync`, adapters reales) sigue sin
+> implementar, Fase 8. La seccion "Contrato de adaptador" abajo describe el diseño COMPLETO planeado;
+> el contrato REAL hoy es mas chico, ver nota en esa seccion.
 
 ## Payment — Propiedades
 
@@ -109,6 +116,8 @@ pasando el subdominio real; el path del webhook no tiene uno y no lo necesita.
 
 ## Contrato de adaptador
 
+Diseño completo planeado (incluye lo que falta para el webhook, Fase 8):
+
 ```csharp
 public interface IPaymentProviderAdapter
 {
@@ -116,6 +125,18 @@ public interface IPaymentProviderAdapter
     Task<InitiatePaymentResult> InitiateAsync(PaymentRequest request, CancellationToken ct);
     bool ValidateWebhookSignature(HttpRequest request, string secret);
     Task<WebhookEvent> ParseWebhookAsync(HttpRequest request, CancellationToken ct);
+}
+```
+
+**Lo que existe hoy** (`EShopy.Application/Common/Payments/IPaymentProviderAdapter.cs`) es el
+subconjunto que Checkout necesita — nada mas, para no fabricar la forma de los metodos de webhook sin
+haber diseñado todavia el webhook (eso es Fase 8):
+
+```csharp
+public interface IPaymentProviderAdapter
+{
+    string Provider { get; }
+    Task<InitiatePaymentResult> InitiateAsync(InitiatePaymentRequest request, CancellationToken ct);
 }
 ```
 

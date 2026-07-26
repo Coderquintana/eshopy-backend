@@ -65,19 +65,19 @@ Cada caso incluye: **Given** (contexto), **When** (acción), **Then** (resultado
 | ID | Given | When | Then |
 |---|---|---|---|
 | CC-01 | Mismo producto | Dos `PUT /api/products/{id}` simultáneos | Uno retorna 409 (RowVersion conflict) |
-| CC-02 | Mismo tenant | Dos checkouts simultáneos | OrderNumbers distintos (sin duplicados) |
+| CC-02 | Mismo tenant | Dos checkouts simultáneos | OrderNumbers distintos (sin duplicados) — ✅ verificado en vivo 2026-07-26 con 25 checkouts concurrentes reales contra SQL Server (encontró y corrigió un bug real, ver `domain/orders.md` y BACKLOG.md C-45); sin test automatizado de regresión todavía (requeriría infra real en CI, no fakes) |
 
 ---
 
-## Módulo: Checkout y Orders (implementar cuando estén disponibles)
+## Módulo: Checkout y Orders — implementado (Fase 7, 2026-07-26)
 
-| ID | Given | When | Then |
-|---|---|---|---|
-| CO-01 | Carrito con producto Active | POST /api/checkout con buyerInfo válido | Order creada, Status = PendingPayment, paymentUrl retornada |
-| CO-02 | Carrito con producto Archived | POST /api/checkout | 409 `PRODUCT_NOT_AVAILABLE` |
-| CO-03 | Carrito vacío | POST /api/checkout | 400 `VALIDATION_ERROR` |
-| CO-04 | Order en PendingPayment | ChangeStatus(Paid) sin Payment Captured | Error — violación de regla |
-| CO-05 | Order Paid | ChangeStatus(Cancelled) | `ORDER_INVALID_STATE` (409) |
+| ID | Given | When | Then | Estado |
+|---|---|---|---|---|
+| CO-01 | Carrito con producto Active | POST /api/checkout con buyerInfo válido | Order creada, Status = PendingPayment, paymentUrl retornada | ✅ `CheckoutFlowTests.CheckoutFlow_ShouldCreateOrderAndBeVisibleToAdmin` |
+| CO-02 | Carrito con producto Archived | POST /api/checkout | 409 `PRODUCT_NOT_AVAILABLE` | Cubierto por `CheckoutCommandHandler` (misma validación que `AddItem` de Cart); sin test de integración dedicado |
+| CO-03 | Carrito vacío | POST /api/checkout | 400 `VALIDATION_ERROR` | ✅ `CheckoutFlowTests.Checkout_WithEmptyCart_ShouldReturn400` |
+| CO-04 | Order en PendingPayment | ChangeStatus(Paid) sin Payment Captured | Error — violación de regla | ❌ **No enforced hoy**: `PATCH /api/orders/{id}/status` es un override manual de admin (no hay webhook que dispare `Paid` automáticamente todavía, Fase 8) — permite `PendingPayment → Paid` sin verificar `Payment.Status`. Revisar cuando exista el webhook |
+| CO-05 | Order Paid | ChangeStatus(Cancelled) | `ORDER_INVALID_STATE` (409) | ✅ `OrderTests.ChangeStatus_WithDisallowedTransition_ShouldThrowDomainException` + `CheckoutFlowTests.ChangeStatus_WithDisallowedTransition_ShouldReturn409` |
 
 ---
 
