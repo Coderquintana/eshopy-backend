@@ -10,4 +10,5 @@ internal sealed class InMemoryOrdersState
   public readonly Dictionary<Guid, List<Order>> OrdersByTenant = new();
   public readonly Dictionary<Guid, Payment> PaymentsById = new();
   public readonly Dictionary<(Guid TenantId, string CounterType), int> Counters = new();
+  public readonly HashSet<(string Provider, string EventId)> ProcessedEvents = new();
 }

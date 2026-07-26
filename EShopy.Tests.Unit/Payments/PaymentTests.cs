@@ -40,6 +40,7 @@ public sealed class PaymentTests
 
   [Theory]
   [InlineData(PaymentStatus.Initiated, PaymentStatus.Authorized)]
+  [InlineData(PaymentStatus.Initiated, PaymentStatus.Captured)]
   [InlineData(PaymentStatus.Initiated, PaymentStatus.Failed)]
   [InlineData(PaymentStatus.Authorized, PaymentStatus.Captured)]
   [InlineData(PaymentStatus.Authorized, PaymentStatus.Failed)]
@@ -54,7 +55,6 @@ public sealed class PaymentTests
   }
 
   [Theory]
-  [InlineData(PaymentStatus.Initiated, PaymentStatus.Captured)]
   [InlineData(PaymentStatus.Initiated, PaymentStatus.Refunded)]
   [InlineData(PaymentStatus.Failed, PaymentStatus.Authorized)]
   [InlineData(PaymentStatus.Refunded, PaymentStatus.Captured)]

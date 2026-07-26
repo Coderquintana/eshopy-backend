@@ -5,6 +5,7 @@ using EShopy.Application.Common.Payments;
 using EShopy.Application.Common.Stores;
 using EShopy.Application.Common.Tenants;
 using EShopy.Application.Orders;
+using EShopy.Application.Payments;
 using EShopy.Application.Products;
 using EShopy.Application.Subscriptions;
 using EShopy.Application.Tenants;
@@ -106,6 +107,9 @@ public sealed class SecurityWebApplicationFactory : WebApplicationFactory<Progra
 
       services.RemoveAll<IPaymentProviderAdapter>();
       services.AddSingleton<IPaymentProviderAdapter, FakePaymentProviderAdapter>();
+
+      services.RemoveAll<IPaymentWebhookWriter>();
+      services.AddSingleton<IPaymentWebhookWriter, InMemoryPaymentWebhookWriter>();
     });
   }
 }
