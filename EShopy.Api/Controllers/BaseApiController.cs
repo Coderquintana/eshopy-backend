@@ -38,6 +38,7 @@ public abstract class BaseApiController : ControllerBase
       ErrorCodes.TenantNotFound => NotFound(error),
       ErrorCodes.ProductInvalidState => Conflict(error),
       ErrorCodes.ProductNotAvailable => Conflict(error),
+      ErrorCodes.ConcurrencyConflict => Conflict(error),
       _ => StatusCode(StatusCodes.Status500InternalServerError, error)
     };
   }

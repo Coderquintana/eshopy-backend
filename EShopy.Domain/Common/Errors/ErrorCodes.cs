@@ -8,6 +8,7 @@ public static class ErrorCodes
   public const string Forbidden = "FORBIDDEN";
   public const string NotFound = "NOT_FOUND";
   public const string Conflict = "CONFLICT";
+  public const string ConcurrencyConflict = "CONCURRENCY_CONFLICT";
   public const string GenericError = "GENERIC_ERROR";
 
   // Catalog / Products
