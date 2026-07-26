@@ -36,7 +36,7 @@ Todas las tablas multi-tenant incluyen estas columnas:
 | `Payments` | Multi-tenant | ✅ Migración creada |
 | `PaymentEventsProcessed` | Global (sin `TenantId`) | ✅ Migración creada (`AddPaymentEventsProcessed`) |
 | `TenantCounters` | Multi-tenant (PK compuesta, sin `Id`) | ✅ Migración creada |
-| `AuditLogs` | Multi-tenant | ❌ Pendiente |
+| `AuditLogs` | Multi-tenant (`TenantId` nullable — hay entradas a nivel plataforma) | ✅ Migración creada (`AddAuditLogs`) |
 
 ## Tabla: Products (implementada)
 
@@ -224,6 +224,35 @@ puede desincronizarse.
 | `TenantId` | `uniqueidentifier` | No | PK compuesta (`TenantId`, `CounterType`) |
 | `CounterType` | `nvarchar(50)` | No | `'OrderNumber'` (extensible a otros contadores por tenant a futuro) |
 | `CurrentValue` | `int` | No | `IsConcurrencyToken()` en la configuracion EF — asi el `UPDATE` generado por EF incluye `WHERE CurrentValue = @valorLeido` automaticamente |
+
+## Tabla: AuditLogs (F9-03, implementada)
+
+> Append-only: nunca se actualiza ni se borra. `TenantId` es nullable porque hay acciones a nivel
+> plataforma (ej. `Tenant.Activate` via SUPERADMIN). Escrita por `IAuditLogger`, best-effort — un
+> fallo al escribir nunca revierte la operacion auditada (ver GOVERNANCE.md).
+
+| Columna | Tipo | Nullable | Notas |
+|---|---|---|---|
+| `Id` | `uniqueidentifier` | No | PK |
+| `TenantId` | `uniqueidentifier` | Sí | Tenant afectado por la accion |
+| `UserId` | `nvarchar(100)` | Sí | Id del usuario autenticado. Null si no hay usuario (ej. webhook) |
+| `UserEmail` | `nvarchar(200)` | Sí | — |
+| `Action` | `nvarchar(100)` | No | `Modulo.Operacion`, ej. `'Order.ChangeStatus'` |
+| `EntityType` | `nvarchar(100)` | No | Ej. `'Order'` |
+| `EntityId` | `uniqueidentifier` | No | — |
+| `Details` | `nvarchar(1000)` | Sí | Texto libre (ej. `'Paid -> Refunded'`), no JSON estructurado a proposito |
+| `CreatedAtUtc` | `datetime2` | No | — |
+
+Operaciones instrumentadas hoy: `Tenant.Activate`, `Order.ChangeStatus`, `TenantUser.Invite`,
+`Payment.Webhook`. Ampliar esta lista es agregar una llamada a `IAuditLogger.LogAsync` en el
+handler correspondiente, no requiere cambios de esquema.
+
+### Índices de AuditLogs
+
+| Índice | Tipo |
+|---|---|
+| `IX_AuditLogs_TenantId_CreatedAtUtc` (`TenantId`, `CreatedAtUtc`) | IX — para listar el historial de un tenant (endpoint de lectura: pendiente, no construido todavia) |
+| `IX_AuditLogs_EntityType_EntityId` (`EntityType`, `EntityId`) | IX — para el historial de una entidad especifica |
 
 ## Tabla: Carts (implementada)
 

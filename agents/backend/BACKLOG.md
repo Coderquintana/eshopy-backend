@@ -2,15 +2,13 @@
 
 > Estado al 2026-07-26. Reauditado contra el codigo real en HEAD (d531917, ultimo commit 2026-02-20) tras una pausa de ~5 meses.
 > B-01, B-03 y P-01 estaban marcados como pendientes pero el codigo ya los resuelve desde el commit `35cebe9` (refactor CQRS) — se movieron a COMPLETADAS. Se agrego una seccion nueva de deuda tecnica de arquitectura (D-xx) que no estaba trackeada; D-02 y D-04 se implementaron y verificaron el mismo dia. D-01 (Unit of Work explicito) se probo y se revirtio a proposito — ver nota debajo de la tabla.
-> Mismo dia: Fase 4 completa (Tenants + Store + Subscription minima) con infra Docker Compose para SQL Server + Keycloak. Ver C-31 en adelante. Fase 6 (Carrito, C-43), Fase 7 (Pedidos + minimo de Pagos, C-44..C-46) y el webhook de Fase 8 (C-47..C-49) tambien completados el mismo dia; C-45 documenta un bug real de concurrencia encontrado y corregido en vivo. Fase 8 solo le falta a los adapters reales de Bancard/PagoPar (F8-03/04), bloqueados sin su documentacion de API.
+> Mismo dia: Fase 4 completa (Tenants + Store + Subscription minima) con infra Docker Compose para SQL Server + Keycloak. Ver C-31 en adelante. Fase 6 (Carrito, C-43), Fase 7 (Pedidos + minimo de Pagos, C-44..C-46) y el webhook de Fase 8 (C-47..C-49) tambien completados el mismo dia; C-45 documenta un bug real de concurrencia encontrado y corregido en vivo. Fase 8 solo le falta a los adapters reales de Bancard/PagoPar (F8-03/04), bloqueados sin su documentacion de API. B-02, F6-04 y F9-01/F9-03 (C-50..C-52) tambien cerrados el mismo dia — C-52 documenta dos bugs reales mas encontrados en el smoke test (paralelizacion de tests con WebApplicationFactory, orden de middleware para enrichment de logs).
 
 ---
 
 ## BLOQUEANTE (debe resolverse antes de continuar)
 
-| # | Tarea | Modulo | Detalle |
-|---|---|---|---|
-| B-02 | Endurecer bootstrap de DB en Development | Core | Evitar drift entre schema y `__EFMigrationsHistory`; evaluar auto-migracion controlada. Confirmado: no existe ningun `Database.Migrate()`/`EnsureCreated()` en el arranque, todo es manual via `dotnet ef database update` |
+_(vacio — B-02 resuelto, ver COMPLETADAS C-50)_
 
 ---
 
@@ -49,13 +47,10 @@ _(vacio)_
 |---|---|---|
 | F5-01 | Commands separados de Queries | Separar ProductService en Command/Query handlers |
 | F5-02 | CurrencyCode desde Store | Eliminar "PYG" hardcodeado |
-| F5-03 | Auditoria de cambios (precio/estado) | AuditLog en tabla DB |
+| F5-03 | Auditoria de cambios (precio/estado) | La tabla `AuditLogs` y `IAuditLogger` ya existen (F9-03, C-52) — falta solo instrumentar `ChangeProductStatusCommandHandler`/`UpdateProductCommandHandler` con una llamada a `LogAsync`, no requiere trabajo de infraestructura nuevo |
 | F5-04 | ProductImages (metadata imagenes) | Entidad + endpoint de imagenes |
 
-### Fase 6 - Carrito — completa, ver COMPLETADAS
-| # | Tarea | Descripcion |
-|---|---|---|
-| F6-04 | Job limpieza carritos expirados | Background job periodico — unico pendiente de la fase, no bloqueante |
+### Fase 6 - Carrito — completa (incl. F6-04), ver COMPLETADAS
 
 ### Fase 7 - Pedidos — completa, ver COMPLETADAS C-44..C-46 y `domain/orders.md`
 
@@ -65,12 +60,10 @@ _(vacio)_
 | F8-03 | BancardAdapter | Integracion con Bancard API — bloqueado hasta tener la documentacion real del provider |
 | F8-04 | PagoParAdapter | Integracion con PagoPar API — idem |
 
-### Fase 9 - Observabilidad
+### Fase 9 - Observabilidad — F9-01/F9-03 completos (ver C-51..C-52), F9-02 pendiente
 | # | Tarea | Descripcion |
 |---|---|---|
-| F9-01 | Enrichers Serilog completos | TenantId, UserId, CorrelationId, TraceId |
-| F9-02 | OpenTelemetry traces y metricas | Instrumentacion basica |
-| F9-03 | AuditLog en operaciones sensibles | Tabla AuditLogs |
+| F9-02 | OpenTelemetry traces y metricas | Instrumentacion basica — mas util cuando haya mas de un servicio corriendo; hoy es un unico backend monolitico. Explicitamente no encarado el 2026-07-26 (decision del usuario) |
 
 ### Fase 10 - Testing
 | # | Tarea | Descripcion |
@@ -135,3 +128,6 @@ _(vacio)_
 | C-47 | F8-01/02/05/06 Webhook de pagos completo: `PaymentEventProcessed` (idempotencia, tabla global sin TenantId), `IPaymentWebhookWriter` (writer angosto, mismo patron que `ICheckoutWriter`), `ProcessPaymentWebhookCommandHandler` (resuelve tenant sin subdominio via `TenantContext.Set(tenantId)`, ahora con `subdomain` opcional). `POST /api/payments/webhooks/{provider}` publico, excluido de `TenantResolutionMiddleware`. `Payment.ChangeStatus` gana la transicion `Initiated → Captured` (varios gateways de redirect confirman en un unico webhook, sin paso de autorizacion separado) | Payments | 2026-07-26 |
 | C-48 | Correccion de diseño durante la implementacion: `IPaymentProviderAdapter.ValidateWebhookSignature`/`ParseWebhook` NO toman `HttpRequest` (el diseño original si) — `EShopy.Application` no depende de ASP.NET Core, igual que el resto del proyecto. `PaymentsController` lee el body/headers crudos y se los pasa como `(string rawBody, IReadOnlyDictionary<string,string> headers)`. `FakePaymentProviderAdapter` implementa un formato de firma/payload propio (header `X-Fake-Signature` + JSON `{eventId, providerPaymentId, eventType}`), documentado como NO el formato de ningun provider real — permite ejercitar el codigo real del webhook (firma, idempotencia, transiciones) en dev/tests sin esperar la documentacion de Bancard/PagoPar | Payments | 2026-07-26 |
 | C-49 | Tests Fase 8: `PaymentTests` actualizado (nueva transicion), `PaymentWebhookFlowTests` (integracion: captura exitosa, fallo, reenvio de EventId duplicado sin reaplicar, firma invalida → 401, `ProviderPaymentId` desconocido → 404) — 115 tests unitarios, 22 de integracion, todos verdes. Verificado en vivo contra SQL Server real: los mismos 5 casos, incluida la idempotencia (una sola fila en `PaymentEventsProcessed` tras dos webhooks con el mismo EventId) | Payments | 2026-07-26 |
+| C-50 | B-02 Bootstrap de DB: `Program.cs` chequea migraciones pendientes al arrancar en Development (`db.Database.GetPendingMigrations()`, sincrono) y tira `InvalidOperationException` con mensaje claro si faltan — antes un schema desincronizado fallaba con un error de SQL confuso en el primer request que tocaba la tabla/columna faltante. Manual a proposito en Production | Core | 2026-07-26 |
+| C-51 | F6-04 Limpieza de carritos expirados: `CartCleanupBackgroundService` (`IHostedService`), corre cada `CartCleanup:IntervalMinutes` (60 en Production, 1 en Development), `ICartRepository.DeleteExpiredAsync` usa `ExecuteDeleteAsync` (DELETE en bloque, cascada a `CartItems` via constraint DB, sin cargar entidades a memoria). Verificado en vivo: carrito forzado a expirado, eliminado en el siguiente ciclo | Carts | 2026-07-26 |
+| C-52 | F9-01/F9-03 Serilog + AuditLog: migracion completa de `ILogger` built-in a Serilog (`Serilog.AspNetCore`), sinks Console + File (JSON compacto en Development, rolling diario). `RequestLoggingScopeMiddleware` migrado de `ILogger.BeginScope` a `Serilog.Context.LogContext.PushProperty`. `AuditLog`/`IAuditLogger`/`EfAuditLogger` (F9-03): registro append-only best-effort (nunca revierte la operacion que audita), instrumentado en 4 operaciones sensibles (`Tenant.Activate`, `Order.ChangeStatus`, `TenantUser.Invite`, `Payment.Webhook`). Dos bugs reales encontrados y corregidos en el smoke test: (1) `WebApplicationFactory` + `HostFactoryResolver` no soporta invocaciones concurrentes — `EShopy.Tests.Integration` corria clases de test en paralelo, cada una con su propia factory, y fallaban de forma intermitente ("entry point exited without building an IHost"); fix: `[assembly: CollectionBehavior(DisableTestParallelization = true)]`. (2) `RequestLoggingScopeMiddleware` corria ANTES de `UseAuthentication()`, asi que `UserId`/`Email` quedaban vacios en los logs — el `ClaimsPrincipal` todavia no estaba poblado; fix: moverlo despues de `UseAuthorization()`, y enriquecer el resumen de `UseSerilogRequestLogging()` via su propio `EnrichDiagnosticContext` (ese middleware si debe ir primero, para loguear tambien las respuestas 401/403 que nunca llegan al resto del pipeline) | Core | 2026-07-26 |

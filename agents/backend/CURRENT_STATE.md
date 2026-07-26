@@ -1,6 +1,6 @@
 # CURRENT_STATE - Estado actual del codigo
 
-> Reauditado 2026-07-26 contra HEAD. Sesion larga: revision de arquitectura + modulo Tenants/Store completo + infra Docker Compose + Carrito + Pedidos + webhook de Pagos (solo faltan los adapters reales Bancard/PagoPar).
+> Reauditado 2026-07-26 contra HEAD. Sesion larga: revision de arquitectura + modulo Tenants/Store completo + infra Docker Compose + Carrito + Pedidos + webhook de Pagos (solo faltan los adapters reales Bancard/PagoPar) + bootstrap de DB (B-02) + limpieza de carritos (F6-04) + Serilog/AuditLog (F9-01/F9-03).
 > Refleja el codigo real, no la documentacion ideal. Ver [BACKLOG.md](BACKLOG.md) seccion "DEUDA TECNICA / ARQUITECTURA" para gaps de escalabilidad no listados en la tabla de abajo.
 >
 > **Smoke test real (2026-07-26)**: `docker compose up -d` + migraciones + API corriendo, flujo
@@ -9,9 +9,14 @@
 > (F4-05) → Carrito completo (F6, add/acumular/get/update/delete) → Checkout completo (F7,
 > carrito → Order → Payment → admin list/detail/status) → **25 checkouts concurrentes reales** contra
 > el mismo tenant/producto → webhook de pagos completo (F8: captura, fallo, reenvio idempotente,
-> firma invalida, ProviderPaymentId desconocido). Encontro y arreglo 3 bugs que los tests con fakes
-> no podian atrapar (Tenants: C-39/C-40; Orders: C-45, violacion de indice unico bajo contencion real en vez de
-> `DbUpdateConcurrencyException`) — Carrito y el webhook de Pagos pasaron sin bugs nuevos.
+> firma invalida, ProviderPaymentId desconocido) → bootstrap de DB (B-02, arranque con migraciones al
+> dia) → limpieza de carritos expirados (F6-04, carrito forzado a expirado eliminado en el ciclo
+> siguiente) → Serilog (F9-01, sinks Console+File verificados, enrichers TenantId/UserId presentes
+> incluso en respuestas 401) → AuditLog (F9-03, fila verificada en `AuditLogs` tras un cambio de
+> estado de Order). Encontro y arreglo 5 bugs que los tests con fakes no podian atrapar (Tenants:
+> C-39/C-40; Orders: C-45, violacion de indice unico bajo contencion real en vez de
+> `DbUpdateConcurrencyException`; Core: C-52, paralelizacion de `WebApplicationFactory` y orden de
+> middleware para enrichment de logs) — Carrito y el webhook de Pagos pasaron sin bugs nuevos.
 
 ---
 
@@ -19,15 +24,77 @@
 
 | Modulo | Estado | Notas |
 |---|---|---|
-| **Core / Infraestructura base** | ? Implementado | Middleware, BaseApiController, ErrorResponse, Result<T>, Global Query Filter, mapeo de `DbUpdateConcurrencyException`/violacion de indice unico a 409. Sin capa de Unit of Work generica a proposito (ver nota D-01 en BACKLOG.md); dos writers angostos (`ITenantOnboardingWriter`/`ITenantActivationWriter`) para los flujos que si escriben varios agregados en una transaccion |
+| **Core / Infraestructura base** | ? Implementado | Middleware, BaseApiController, ErrorResponse, Result<T>, Global Query Filter, mapeo de `DbUpdateConcurrencyException`/violacion de indice unico a 409. Sin capa de Unit of Work generica a proposito (ver nota D-01 en BACKLOG.md); writers angostos (`ITenantOnboardingWriter`/`ITenantActivationWriter`/`ICheckoutWriter`/`IPaymentWebhookWriter`) para los flujos que escriben varios agregados en una transaccion. Bootstrap de DB en Development (B-02): chequea migraciones pendientes al arrancar. Logging via Serilog (F9-01, ver seccion propia abajo). Auditoria de operaciones sensibles via `AuditLog`/`IAuditLogger` (F9-03, ver seccion propia abajo) |
 | **Auth (Keycloak/JWT)** | ? Completo (Fase 2) | OIDC + RBAC por claim `permissions` + CORS por ambiente + headers de seguridad + UserContextAccessor |
 | **Products (Catalog)** | ? Completo (MVP) | CQRS + Result<T> + SQL pagination + StoreId + transiciones validadas. `ProductService` ya no existe (reemplazado por Commands/Queries). FK reales a Tenants/Stores. RowVersion configurado pero no cableado end-to-end (ver D-03) |
 | **Store** | ? Implementado | `EfStoreService`/`IStoreRepository` reales (reemplazan `InMemoryStoreService`). `GET/PUT /api/store` funcionando. `CurrencyCode` inmutable tras creacion |
 | **Tenants** | ? Implementado (Fase 4) | `Tenant`/`TenantUser` reales, maquina de estados completa. `EfTenantResolver` reemplaza el diccionario en memoria (cache ~60s por subdominio). Onboarding (`POST /api/onboarding/tenants`) crea Tenant+Store+Owner(Keycloak)+Subscription atomicamente. Activacion manual SUPERADMIN implementada; webhook de pago sigue en Fase 8. Invitar Admin/Staff (`GET/POST /api/admin/users`) implementado y verificado en vivo (F4-05) |
 | **Subscriptions** | ?? Minimo (Fase 4) | Entidad y maquina de estados completas, se crea en el onboarding. Sin integracion de pago real: `PriceAmount` siempre 0 (precios TBD), sin renovacion automatica ni webhook — todo eso es Fase 8 |
-| **Carts** | ? Implementado (Fase 6) | `Cart`/`CartItem` — primer agregado con coleccion hija encapsulada (`Items` via backing field). `GET/POST/PUT/DELETE /api/cart[/items/{productId}]`, anonimo. Sin precio en `CartItem` (se lee en vivo). Falta solo F6-04 (limpieza de carritos expirados, no bloqueante) |
+| **Carts** | ? Implementado (Fase 6, completa) | `Cart`/`CartItem` — primer agregado con coleccion hija encapsulada (`Items` via backing field). `GET/POST/PUT/DELETE /api/cart[/items/{productId}]`, anonimo. Sin precio en `CartItem` (se lee en vivo). `CartCleanupBackgroundService` (F6-04) borra los expirados periodicamente — verificado en vivo |
 | **Orders** | ? Implementado (Fase 7) | `Order`/`OrderItem`, `ICheckoutWriter` (writer angosto, sin SQL crudo). `POST /api/checkout` + `GET /api/orders[/{id}]` + `PATCH /api/orders/{id}/status`. Verificado en vivo, incluye test de concurrencia real (25 checkouts simultaneos) que encontro y corrigio un bug (C-45) |
 | **Payments** | ? Implementado (Fase 8, webhook completo) | `Payment`, `PaymentEventProcessed` (idempotencia), `IPaymentWebhookWriter`. `POST /api/payments/webhooks/{provider}` publico. Verificado en vivo: captura, fallo, reenvio idempotente, firma invalida, `ProviderPaymentId` desconocido. Solo faltan los adapters reales Bancard/PagoPar (F8-03/04) — bloqueados sin su documentacion de API |
+| **Observabilidad** | ? Parcial (F9-01/F9-03 completos, F9-02 pendiente) | Serilog (sinks Console+File, enrichers TenantId/UserId/CorrelationId) y `AuditLog` (4 operaciones instrumentadas). OpenTelemetry (F9-02) no encarado — explicitamente fuera de alcance por decision del usuario el 2026-07-26 |
+
+---
+
+## Bootstrap de DB (B-02)
+
+`Program.cs`, en Development, corre `db.Database.GetPendingMigrations()` (sincrono) al arrancar y
+tira `InvalidOperationException` con instrucciones claras si hay migraciones sin aplicar. En
+Production sigue siendo manual a proposito (ver `docs/keycloak-setup.md`). **Importante para tests**:
+este chequeo hace una llamada real a SQL Server, así que cualquier test de integracion debe usar
+`SecurityWebApplicationFactory` (fija `Environment = "Testing"`, no "Development") — nunca
+`WebApplicationFactory<Program>` a secas. Ver `testing/test-strategy.md` "Notas operativas reales".
+
+---
+
+## Limpieza de carritos (F6-04)
+
+`EShopy.Infrastructure/Carts/CartCleanupBackgroundService.cs` (`IHostedService`) corre cada
+`CartCleanup:IntervalMinutes` (60 en Production, 1 en Development, para poder probarlo en vivo sin
+esperar) y borra los carritos vencidos de todos los tenants con `ICartRepository.DeleteExpiredAsync`
+(`ExecuteDeleteAsync` — DELETE en bloque, sin cargar entidades; `CartItems` cascadea a nivel de
+constraint DB). Corre en su propio scope de DI, sin `TenantId` fijado — el Global Query Filter queda
+transparente, mismo mecanismo que el webhook de pagos.
+
+---
+
+## Logging (F9-01, Serilog)
+
+Reemplaza el `ILogger` built-in. Configuracion via appsettings (`ReadFrom.Configuration`), sección
+`"Serilog"` en `appsettings*.json`:
+
+- **Development**: nivel `Debug`, sinks Console (texto legible) + File (`logs/eshopy-.log`, JSON
+  compacto, rolling diario, retiene 7 dias).
+- **Production**: nivel `Information`, sink Console en JSON compacto (para que un colector de logs
+  de contenedores lo levante desde stdout).
+
+Enrichers (`TenantId`, `Subdomain`, `UserId`, `UserEmail`, `UserRoles`, `UserPermissions`,
+`CorrelationId`, `TraceId`, `RequestPath`, `RequestMethod`) via dos mecanismos complementarios (ver
+GOVERNANCE.md para el detalle y los dos bugs reales que esto encontro):
+
+1. `RequestLoggingScopeMiddleware` con `Serilog.Context.LogContext.PushProperty` — corre DESPUES de
+   `UseAuthentication()`/`UseAuthorization()`, enriquece los logs que emiten controllers/handlers.
+2. `UseSerilogRequestLogging()` con su propio `EnrichDiagnosticContext` — va PRIMERO en el pipeline
+   (envuelve TODO, incluidas las respuestas 401/403), no depende de `LogContext`.
+
+Bootstrap logger de dos etapas (patron recomendado por Serilog.AspNetCore): `Log.Logger` se inicializa
+con un logger minimo antes de `WebApplication.CreateBuilder`, para cubrir errores de arranque
+anteriores a que la configuracion real este disponible; `Program.cs` entero queda envuelto en
+`try/catch (Exception ex) when (ex is not HostAbortedException)/finally { Log.CloseAndFlush(); }` —
+la excepcion de `HostAbortedException` explicitamente NO se atrapa porque `WebApplicationFactory` la
+usa para interceptar `Build()` en los tests.
+
+---
+
+## Auditoria (F9-03, AuditLog)
+
+`EShopy.Domain/Common/Audit/AuditLog.cs` (append-only, sin invariantes de negocio) +
+`EShopy.Application/Common/Audit/IAuditLogger.cs` + `EShopy.Infrastructure/Audit/EfAuditLogger.cs`.
+Best-effort: atrapa sus propias excepciones, nunca revierte la operacion que audita. Instrumentado
+hoy en 4 handlers: `ActivateTenantCommandHandler`, `ChangeOrderStatusCommandHandler`,
+`InviteTenantUserCommandHandler`, `ProcessPaymentWebhookCommandHandler`. Sin endpoint de lectura
+todavia (no hay caso de uso que lo pida aun) — solo escritura, verificada en vivo.
 
 ---
 
@@ -150,7 +217,12 @@ Estado: **? Completo**
 | Suite | Tests | Estado |
 |---|---|---|
 | `EShopy.Tests.Unit` | 115 tests | ? (incluye `CartTests`, `CartValidatorTests`, `TenantTests`, `SubscriptionTests`, `TenantValidatorTests`, `InviteTenantUserCommandValidatorTests`, `SubdomainResolverTests`, `OrderTests`, `PaymentTests`, `CheckoutCommandValidatorTests`) |
-| `EShopy.Tests.Integration` | 22 tests | ? Incluye seguridad 401/403/200, onboarding, invitacion de usuarios, flujo de carrito, flujo de checkout end-to-end (`CheckoutFlowTests`) y flujo de webhook de pagos (`PaymentWebhookFlowTests`: captura, fallo, idempotencia, firma invalida, payment no encontrado) |
+| `EShopy.Tests.Integration` | 22 tests | ? Incluye seguridad 401/403/200, onboarding, invitacion de usuarios, flujo de carrito, flujo de checkout end-to-end (`CheckoutFlowTests`) y flujo de webhook de pagos (`PaymentWebhookFlowTests`: captura, fallo, idempotencia, firma invalida, payment no encontrado). Sin paralelizar (`AssemblyInfo.cs`), ver `testing/test-strategy.md` |
+
+> B-02, F6-04, F9-01 y F9-03 (bootstrap de DB, limpieza de carritos, Serilog, AuditLog) no tienen
+> tests automatizados dedicados todavia — se verificaron en vivo contra Docker (ver nota de smoke
+> test al inicio del doc). `InMemoryAuditLogger` ya existe como fake registrado en
+> `SecurityWebApplicationFactory` para cuando se agregue esa cobertura.
 
 Nuevos tests de seguridad:
 
@@ -193,7 +265,8 @@ Soporte de tests:
   - `20260726183727_AddCartsCartItems`
   - `20260726191023_AddOrdersPaymentsTenantCounters`
   - `20260726195952_AddPaymentEventsProcessed`
-- Si se elimina manualmente una tabla, EF no la recrea al iniciar mientras `__EFMigrationsHistory` siga marcado; ejecutar `dotnet ef database update` con historial consistente. (B-02 sigue abierto: no hay auto-migracion controlada en el arranque)
+  - `20260726205016_AddAuditLogs`
+- Si se elimina manualmente una tabla, EF no la recrea al iniciar mientras `__EFMigrationsHistory` siga marcado; ejecutar `dotnet ef database update` con historial consistente. B-02 (resuelto): la API ahora detecta esto al arrancar en Development y falla con un mensaje claro en vez de un error de SQL confuso mas adelante.
 
 ---
 

@@ -129,6 +129,27 @@ public void ChangeStatus_FromDraftToArchived_IsInvalid()
 | Application handlers | 80% |
 | Integration (endpoints) | Casos críticos (ver `critical-test-cases.md`) |
 
+## Notas operativas reales (no en el diseño original)
+
+- **`EShopy.Tests.Integration` corre sin paralelizar** (`[assembly: CollectionBehavior(DisableTestParallelization = true)]`
+  en `AssemblyInfo.cs`). Encontrado 2026-07-26 al agregar el chequeo de migraciones pendientes de
+  B-02: `WebApplicationFactory<Program>` usa `HostFactoryResolver` para interceptar `Build()` del
+  host antes de que corra, y ese mecanismo no es seguro para invocaciones concurrentes en el mismo
+  proceso — cada clase de test crea su propia factory (`IClassFixture`, no compartida), y sin esto
+  fallaban de forma intermitente con `"The entry point exited without ever building an IHost"`. Si
+  se necesita paralelizar en el futuro, investigar `ICollectionFixture` compartido en vez de
+  revertir esto.
+- **Toda clase de test de integración debe usar `SecurityWebApplicationFactory`** (o una factory que
+  llame `builder.UseEnvironment("Testing")`), nunca `WebApplicationFactory<Program>` a secas — el
+  ambiente "Development" dispara el chequeo de migraciones de B-02 en `Program.cs`, que hace una
+  llamada real a SQL Server. `HealthEndpointTests` uso la factory generica originalmente y rompio
+  exactamente por esto la primera vez que hubo una migracion pendiente sin aplicar.
+- Real de EF/SQL Server para tests de integración: no hay Testcontainers ni Respawn implementados
+  todavía (a pesar de figurar en "Herramientas" arriba) — lo que existe hoy son fakes en memoria
+  (`EShopy.Tests.Integration/Support/InMemory*.cs`) registrados en `SecurityWebApplicationFactory`,
+  uno por cada repositorio/writer. La DB real solo se toca en el smoke test manual contra Docker
+  (ver `CURRENT_STATE.md`), no en `dotnet test`.
+
 ## CI (pendiente configurar)
 
 ```yaml
