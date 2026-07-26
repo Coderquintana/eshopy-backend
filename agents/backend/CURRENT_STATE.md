@@ -1,6 +1,7 @@
 # CURRENT_STATE - Estado actual del codigo
 
-> Snapshot al 2026-02-21. Refleja el codigo real, no la documentacion ideal.
+> Reauditado 2026-07-26 contra HEAD (d531917). Sin commits nuevos desde 2026-02-20 (pausa de ~5 meses).
+> Refleja el codigo real, no la documentacion ideal. Ver [BACKLOG.md](BACKLOG.md) seccion "DEUDA TECNICA / ARQUITECTURA" para gaps de escalabilidad no listados en la tabla de abajo.
 
 ---
 
@@ -8,15 +9,28 @@
 
 | Modulo | Estado | Notas |
 |---|---|---|
-| **Core / Infraestructura base** | ? Implementado | Middleware, BaseApiController, ErrorResponse, Result<T>, Global Query Filter |
+| **Core / Infraestructura base** | ? Implementado | Middleware, BaseApiController, ErrorResponse, Result<T>, Global Query Filter, mapeo de `DbUpdateConcurrencyException`/violacion de indice unico a 409. Sin capa de Unit of Work explicita a proposito (ver nota D-01 en BACKLOG.md) |
 | **Auth (Keycloak/JWT)** | ? Completo (Fase 2) | OIDC + RBAC por claim `permissions` + CORS por ambiente + headers de seguridad + UserContextAccessor |
-| **Products (Catalog)** | ? Completo (MVP) | CQRS + Result<T> + SQL pagination + StoreId + transiciones validadas |
+| **Products (Catalog)** | ? Completo (MVP) | CQRS + Result<T> + SQL pagination + StoreId + transiciones validadas. `ProductService` ya no existe (reemplazado por Commands/Queries). RowVersion configurado pero no cableado end-to-end (ver D-03) |
 | **Store (abstraccion)** | ?? Placeholder | IStoreService + InMemoryStoreService retorna PYG fijo |
-| **Tenants** | ? Pendiente | Solo InMemoryTenantResolver placeholder |
+| **Tenants** | ? Pendiente | Solo InMemoryTenantResolver placeholder (2 tenants hardcodeados). Resolucion de subdominio ahora en `SubdomainResolver` (puro, testeado) |
 | **Carts** | ? No iniciado | Fase 6 |
 | **Orders** | ? No iniciado | Fase 7 |
 | **Payments** | ? No iniciado | Fase 8 |
 | **Subscriptions** | ? No iniciado | Fase 4 |
+
+---
+
+## Deuda tecnica de arquitectura (ver detalle en BACKLOG.md)
+
+Revision de escalabilidad/sostenibilidad/consistencia (2026-07-26). D-02 y D-04 se implementaron el mismo dia; D-01 se probo y se revirtio a proposito; D-03 queda pendiente:
+
+- **D-01 Unit of Work — descartado a proposito**: se implemento `IUnitOfWork`/`EfUnitOfWork` y se revirtio en la misma sesion. `EShopyDbContext` ya ES un Unit of Work (trackea cambios, `SaveChangesAsync` los confirma atomicamente); agregar otra interfaz encima era abstraer una abstraccion sin un segundo repositorio que la necesite todavia. `EfProductRepository` vuelve a llamar `SaveChangesAsync` directamente. Revisar cuando una operacion necesite escribir a traves de mas de un repositorio en una sola transaccion (candidato: Checkout, F7-02).
+- **D-02 Errores de concurrencia — resuelto**: `GlobalExceptionMiddleware` mapea `DbUpdateConcurrencyException` y `DbUpdateException` con `SqlException` 2601/2627 (violacion de indice unico) a 409 Conflict (`ErrorCodes.ConcurrencyConflict` / `ErrorCodes.Conflict`).
+- **D-03 RowVersion decorativo — pendiente**: configurado como concurrency token en EF, pero los comandos no reciben la version del cliente, asi que no previene lost updates en la practica.
+- **D-04 Resolucion de tenant sin tests — resuelto**: logica extraida a `EShopy.Application/Common/Tenants/SubdomainResolver.cs` (puro, sin dependencia de ASP.NET), con 9 tests en `EShopy.Tests.Unit/Tenants/SubdomainResolverTests.cs`.
+
+Lo demas (capas, CQRS, Result<T>, validacion, indices/constraints en DB, multi-tenancy via Global Query Filter, RBAC) esta consistente y es una base solida para escalar.
 
 ---
 
@@ -56,7 +70,7 @@ Estado: **? Completo**
 
 | Suite | Tests | Estado |
 |---|---|---|
-| `EShopy.Tests.Unit` | 24 tests | ? |
+| `EShopy.Tests.Unit` | 33 tests | ? (incluye 9 nuevos de `SubdomainResolverTests`) |
 | `EShopy.Tests.Integration` | 5 tests | ? Incluye seguridad 401/403/200 |
 
 Nuevos tests de seguridad:
