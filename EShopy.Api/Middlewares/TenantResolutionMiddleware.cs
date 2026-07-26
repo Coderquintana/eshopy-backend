@@ -27,7 +27,7 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next)
     }
 
     var host = ctx.Request.Host.Host ?? "";
-    var subdomain = ExtractSubdomain(host);
+    var subdomain = SubdomainResolver.Extract(host);
 
     if (string.IsNullOrWhiteSpace(subdomain))
       throw new DomainException(ErrorCodes.TenantNotFound, "Falta el subdominio del tenant.");
@@ -49,25 +49,5 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next)
         return true;
     }
     return false;
-  }
-
-  private static string ExtractSubdomain(string host)
-  {
-    // Ejemplos:
-    // demo.eshopy.com.py => demo
-    // admin.demo.eshopy.com.py => demo (admin es prefijo)
-    // localhost => localhost (dev)
-    if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase))
-      return "localhost";
-
-    var parts = host.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    if (parts.Length < 3) // heuristic
-      return parts.FirstOrDefault() ?? "";
-
-    // Si empieza con admin, usar el siguiente como tenant
-    if (string.Equals(parts[0], "admin", StringComparison.OrdinalIgnoreCase) && parts.Length >= 2)
-      return parts[1];
-
-    return parts[0];
   }
 }
