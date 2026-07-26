@@ -1,5 +1,6 @@
 using EShopy.Application.Common.Context;
 using EShopy.Domain.Carts;
+using EShopy.Domain.Common.Audit;
 using EShopy.Domain.Common.Counters;
 using EShopy.Domain.Orders;
 using EShopy.Domain.Payments;
@@ -31,6 +32,8 @@ public sealed class EShopyDbContext(
   /// <summary>Global: ledger de idempotencia de webhooks, no tiene TenantId (ver PaymentEventProcessed).</summary>
   public DbSet<PaymentEventProcessed> PaymentEventsProcessed => Set<PaymentEventProcessed>();
 
+  public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
     modelBuilder.ApplyConfiguration(new ProductConfiguration());
@@ -45,6 +48,7 @@ public sealed class EShopyDbContext(
     modelBuilder.ApplyConfiguration(new PaymentConfiguration());
     modelBuilder.ApplyConfiguration(new TenantCounterConfiguration());
     modelBuilder.ApplyConfiguration(new PaymentEventProcessedConfiguration());
+    modelBuilder.ApplyConfiguration(new AuditLogConfiguration());
 
     // Global Query Filter de multi-tenancy.
     // Si TenantId no está disponible (e.g. migrations en design-time, o rutas SUPERADMIN excluidas
@@ -82,5 +86,10 @@ public sealed class EShopyDbContext(
 
     modelBuilder.Entity<TenantCounter>()
       .HasQueryFilter(c => tenantContext.TenantId == null || c.TenantId == tenantContext.TenantId);
+
+    // AuditLog.TenantId es nullable (hay entradas a nivel plataforma) — mismo patron seguro, ahora
+    // Guid? de los dos lados: EF Core traduce esto a una comparacion SQL null-safe.
+    modelBuilder.Entity<AuditLog>()
+      .HasQueryFilter(a => tenantContext.TenantId == null || a.TenantId == tenantContext.TenantId);
   }
 }

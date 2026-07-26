@@ -1,6 +1,7 @@
 using EShopy.Application.Carts;
 using EShopy.Application.Carts.Commands;
 using EShopy.Application.Carts.Queries;
+using EShopy.Application.Common.Audit;
 using EShopy.Application.Common.Identity;
 using EShopy.Application.Common.Payments;
 using EShopy.Application.Common.Stores;
@@ -17,6 +18,7 @@ using EShopy.Application.Subscriptions;
 using EShopy.Application.Tenants;
 using EShopy.Application.Tenants.Commands;
 using EShopy.Application.Tenants.Queries;
+using EShopy.Infrastructure.Audit;
 using EShopy.Infrastructure.Carts;
 using EShopy.Infrastructure.Identity;
 using EShopy.Infrastructure.Orders;
@@ -42,6 +44,9 @@ public static class DependencyInjection
 
     services.AddDbContext<EShopyDbContext>(options => options.UseSqlServer(connectionString));
     services.AddMemoryCache();
+
+    // Auditoria (F9-03)
+    services.AddScoped<IAuditLogger, EfAuditLogger>();
 
     // Tenant
     services.AddScoped<ITenantResolver, EfTenantResolver>();

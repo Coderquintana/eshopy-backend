@@ -1,3 +1,4 @@
+using EShopy.Application.Common.Audit;
 using EShopy.Application.Subscriptions;
 using EShopy.Application.Tenants.Contracts;
 using EShopy.Domain.Common.Errors;
@@ -15,7 +16,8 @@ namespace EShopy.Application.Tenants.Commands;
 public sealed class ActivateTenantCommandHandler(
   ITenantRepository tenantRepository,
   ISubscriptionRepository subscriptionRepository,
-  ITenantActivationWriter activationWriter)
+  ITenantActivationWriter activationWriter,
+  IAuditLogger auditLogger)
 {
   public async Task<Result<TenantAdminDto>> Handle(ActivateTenantCommand command, CancellationToken ct)
   {
@@ -30,10 +32,12 @@ public sealed class ActivateTenantCommandHandler(
     try
     {
       var now = DateTime.UtcNow;
+      var previousStatus = tenant.Status;
       tenant.ChangeStatus(TenantStatus.Active, now);
       subscription.ChangeStatus(SubscriptionStatus.Active, now);
 
       await activationWriter.ActivateAsync(tenant, subscription, ct);
+      await auditLogger.LogAsync(tenant.Id, "Tenant.Activate", "Tenant", tenant.Id, $"{previousStatus} -> {tenant.Status}", ct);
       return Result<TenantAdminDto>.Ok(TenantMappings.ToAdminDto(tenant));
     }
     catch (DomainException ex)

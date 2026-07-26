@@ -1,5 +1,6 @@
 using System.Text;
 using EShopy.Application.Carts;
+using EShopy.Application.Common.Audit;
 using EShopy.Application.Common.Identity;
 using EShopy.Application.Common.Payments;
 using EShopy.Application.Common.Stores;
@@ -117,6 +118,9 @@ public sealed class SecurityWebApplicationFactory : WebApplicationFactory<Progra
 
       services.RemoveAll<IPaymentWebhookWriter>();
       services.AddSingleton<IPaymentWebhookWriter, InMemoryPaymentWebhookWriter>();
+
+      services.RemoveAll<IAuditLogger>();
+      services.AddSingleton<IAuditLogger, InMemoryAuditLogger>();
     });
   }
 }

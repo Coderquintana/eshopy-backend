@@ -1,3 +1,4 @@
+using EShopy.Application.Common.Audit;
 using EShopy.Application.Common.Context;
 using EShopy.Application.Common.Identity;
 using EShopy.Application.Tenants.Contracts;
@@ -11,7 +12,8 @@ namespace EShopy.Application.Tenants.Commands;
 public sealed class InviteTenantUserCommandHandler(
   ITenantUserRepository repository,
   IKeycloakUserProvisioner keycloakProvisioner,
-  TenantContext tenantContext)
+  TenantContext tenantContext,
+  IAuditLogger auditLogger)
 {
   private readonly InviteTenantUserCommandValidator _validator = new();
 
@@ -45,6 +47,7 @@ public sealed class InviteTenantUserCommandHandler(
     {
       var tenantUser = TenantUser.Create(tenantId, keycloakUserId, normalizedEmail, command.Name, role, DateTime.UtcNow);
       await repository.AddAsync(tenantUser, ct);
+      await auditLogger.LogAsync(tenantId, "TenantUser.Invite", "TenantUser", tenantUser.Id, $"{normalizedEmail} ({role})", ct);
       return Result<TenantUserDto>.Ok(TenantMappings.ToUserDto(tenantUser));
     }
     catch (DomainException ex)

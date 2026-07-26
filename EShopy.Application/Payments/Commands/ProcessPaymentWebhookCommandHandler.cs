@@ -1,3 +1,4 @@
+using EShopy.Application.Common.Audit;
 using EShopy.Application.Common.Context;
 using EShopy.Application.Common.Payments;
 using EShopy.Application.Orders;
@@ -19,7 +20,8 @@ public sealed class ProcessPaymentWebhookCommandHandler(
   IEnumerable<IPaymentProviderAdapter> adapters,
   IPaymentWebhookWriter webhookWriter,
   IOrderRepository orderRepository,
-  TenantContext tenantContext)
+  TenantContext tenantContext,
+  IAuditLogger auditLogger)
 {
   public async Task<Result> Handle(ProcessPaymentWebhookCommand command, CancellationToken ct)
   {
@@ -72,6 +74,7 @@ public sealed class ProcessPaymentWebhookCommandHandler(
       }
 
       await webhookWriter.ApplyAsync(payment, order, command.Provider, evt.EventId, now, ct);
+      await auditLogger.LogAsync(payment.TenantId, "Payment.Webhook", "Payment", payment.Id, $"{evt.EventType} ({command.Provider})", ct);
       return Result.Ok();
     }
     catch (DomainException ex)
