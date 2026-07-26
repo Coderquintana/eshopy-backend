@@ -2,7 +2,9 @@ using EShopy.Api.Middlewares;
 using EShopy.Application.Common.Context;
 using EShopy.Infrastructure;
 using EShopy.Infrastructure.Identity;
+using EShopy.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -123,6 +125,27 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+
+// B-02: en Development, fallar rapido y claro si faltan migraciones por aplicar, en vez de un
+// error de SQL confuso la primera vez que un request toca una tabla/columna que no existe
+// todavia. En Production queda manual a proposito: un auto-migrate silencioso en el ambiente que
+// importa es mas riesgoso que un paso explicito documentado (ver docs/keycloak-setup.md).
+// Sincrono a proposito (GetPendingMigrations, no *Async): un Main de nivel superior con "await"
+// rompe el mecanismo que usa WebApplicationFactory para interceptar Build() en los tests de
+// integracion (HostFactoryResolver espera un entry point sincrono).
+if (app.Environment.IsDevelopment())
+{
+  using var migrationCheckScope = app.Services.CreateScope();
+  var db = migrationCheckScope.ServiceProvider.GetRequiredService<EShopyDbContext>();
+  var pendingMigrations = db.Database.GetPendingMigrations().ToList();
+
+  if (pendingMigrations.Count > 0)
+  {
+    throw new InvalidOperationException(
+      $"Faltan migraciones por aplicar: {string.Join(", ", pendingMigrations)}. " +
+      "Correr: dotnet ef database update --project EShopy.Infrastructure --startup-project EShopy.Api");
+  }
+}
 
 // Pipeline
 app.UseMiddleware<CorrelationIdMiddleware>();

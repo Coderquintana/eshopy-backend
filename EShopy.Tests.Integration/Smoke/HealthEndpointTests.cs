@@ -1,14 +1,14 @@
+using EShopy.Tests.Integration.Support;
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
 namespace EShopy.Tests.Integration.Smoke;
 
-public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class HealthEndpointTests : IClassFixture<SecurityWebApplicationFactory>
 {
-  private readonly WebApplicationFactory<Program> _factory;
+  private readonly SecurityWebApplicationFactory _factory;
 
-  public HealthEndpointTests(WebApplicationFactory<Program> factory)
+  public HealthEndpointTests(SecurityWebApplicationFactory factory)
   {
     _factory = factory;
   }

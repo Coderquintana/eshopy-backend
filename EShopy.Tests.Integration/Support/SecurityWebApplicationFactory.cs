@@ -24,6 +24,13 @@ public sealed class SecurityWebApplicationFactory : WebApplicationFactory<Progra
 {
   protected override void ConfigureWebHost(IWebHostBuilder builder)
   {
+    // Distinto de "Development" a proposito: el chequeo de migraciones pendientes de B-02 en
+    // Program.cs corre solo en Development y hace una llamada real a SQL Server antes de que el
+    // host termine de construirse — eso rompe el mecanismo que usa WebApplicationFactory para
+    // interceptar Build() (HostAbortedException nunca llega a tirarse limpio). Los tests de
+    // integracion no necesitan ese chequeo: usan fakes en memoria, no una DB real.
+    builder.UseEnvironment("Testing");
+
     builder.ConfigureAppConfiguration((_, configBuilder) =>
     {
       var overrides = new Dictionary<string, string?>
