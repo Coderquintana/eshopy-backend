@@ -21,14 +21,29 @@ public abstract class BaseApiController : ControllerBase
     if (result.IsSuccess)
       return Ok(result.Value);
 
+    return MapError(result.Code!, result.Message!);
+  }
+
+  /// <summary>Overload para Result sin valor (ej. el webhook de pagos, que solo responde 200 OK).</summary>
+  [NonAction]
+  protected ActionResult FromResult(Result result)
+  {
+    if (result.IsSuccess)
+      return Ok();
+
+    return MapError(result.Code!, result.Message!);
+  }
+
+  private ActionResult MapError(string code, string message)
+  {
     var error = new ErrorResponse
     {
       TraceId = HttpContext.TraceIdentifier,
-      Code = result.Code!,
-      Message = result.Message!
+      Code = code,
+      Message = message
     };
 
-    return result.Code switch
+    return code switch
     {
       ErrorCodes.NotFound => NotFound(error),
       ErrorCodes.Conflict => Conflict(error),
@@ -43,6 +58,7 @@ public abstract class BaseApiController : ControllerBase
       ErrorCodes.TenantInvalidState => Conflict(error),
       ErrorCodes.TenantSuspended => StatusCode(StatusCodes.Status403Forbidden, error),
       ErrorCodes.TenantCancelled => StatusCode(StatusCodes.Status403Forbidden, error),
+      ErrorCodes.PaymentWebhookInvalid => Unauthorized(error),
       ErrorCodes.ExternalServiceError => StatusCode(StatusCodes.Status502BadGateway, error),
       _ => StatusCode(StatusCodes.Status500InternalServerError, error)
     };
