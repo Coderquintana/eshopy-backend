@@ -1,7 +1,10 @@
 using System.Text;
+using EShopy.Application.Common.Identity;
 using EShopy.Application.Common.Stores;
 using EShopy.Application.Common.Tenants;
 using EShopy.Application.Products;
+using EShopy.Application.Subscriptions;
+using EShopy.Application.Tenants;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -62,6 +65,26 @@ public sealed class SecurityWebApplicationFactory : WebApplicationFactory<Progra
 
       services.RemoveAll<IStoreService>();
       services.AddSingleton<IStoreService, FakeStoreService>();
+
+      services.AddSingleton<InMemoryTenantsState>();
+
+      services.RemoveAll<ITenantRepository>();
+      services.AddSingleton<ITenantRepository, InMemoryTenantRepository>();
+
+      services.RemoveAll<IStoreRepository>();
+      services.AddSingleton<IStoreRepository, InMemoryStoreRepository>();
+
+      services.RemoveAll<ISubscriptionRepository>();
+      services.AddSingleton<ISubscriptionRepository, InMemorySubscriptionRepository>();
+
+      services.RemoveAll<ITenantOnboardingWriter>();
+      services.AddSingleton<ITenantOnboardingWriter, InMemoryTenantOnboardingWriter>();
+
+      services.RemoveAll<ITenantActivationWriter>();
+      services.AddSingleton<ITenantActivationWriter, InMemoryTenantActivationWriter>();
+
+      services.RemoveAll<IKeycloakUserProvisioner>();
+      services.AddSingleton<IKeycloakUserProvisioner, FakeKeycloakUserProvisioner>();
     });
   }
 }
