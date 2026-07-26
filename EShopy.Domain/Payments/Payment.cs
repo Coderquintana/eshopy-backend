@@ -7,7 +7,7 @@ namespace EShopy.Domain.Payments;
 /// <summary>
 /// Intento de pago asociado a un Order. Se crea en Initiated con lo que devuelve el provider al
 /// iniciar el pago; las transiciones siguientes (Authorized/Captured/Failed/Refunded) las dispara
-/// el webhook del provider — no implementado todavia (Fase 8, siguiente modulo).
+/// el webhook del provider (ver <c>ProcessPaymentWebhookCommandHandler</c>).
 /// </summary>
 public sealed class Payment : AppEntity
 {
@@ -54,8 +54,12 @@ public sealed class Payment : AppEntity
 
   /// <remarks>
   /// Transiciones validas:
-  /// Initiated → Authorized | Initiated → Failed | Authorized → Captured
+  /// Initiated → Authorized | Initiated → Captured | Initiated → Failed | Authorized → Captured
   /// Authorized → Failed | Captured → Refunded
+  ///
+  /// Initiated → Captured (agregado con el webhook, Fase 8): varios gateways de redirect no emiten
+  /// un evento de autorizacion separado, solo confirman el pago en un unico webhook. Exigir el paso
+  /// intermedio Authorized rompería ese caso real sin aportar nada — el estado final es el mismo.
   /// </remarks>
   public void ChangeStatus(PaymentStatus newStatus, DateTime updatedAtUtc, string? errorCode = null, string? errorMessage = null)
   {
@@ -65,6 +69,7 @@ public sealed class Payment : AppEntity
     var allowed = (Status, newStatus) switch
     {
       (PaymentStatus.Initiated, PaymentStatus.Authorized) => true,
+      (PaymentStatus.Initiated, PaymentStatus.Captured) => true,
       (PaymentStatus.Initiated, PaymentStatus.Failed) => true,
       (PaymentStatus.Authorized, PaymentStatus.Captured) => true,
       (PaymentStatus.Authorized, PaymentStatus.Failed) => true,

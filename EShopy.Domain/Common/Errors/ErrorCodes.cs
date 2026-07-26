@@ -25,4 +25,5 @@ public static class ErrorCodes
 
   // Orders / Payments
   public const string OrderInvalidState = "ORDER_INVALID_STATE";
+  public const string PaymentWebhookInvalid = "PAYMENT_WEBHOOK_INVALID";
 }
