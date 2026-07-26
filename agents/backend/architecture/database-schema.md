@@ -33,8 +33,8 @@ Todas las tablas multi-tenant incluyen estas columnas:
 | `CartItems` | Multi-tenant (no AppEntity) | ✅ Migración creada |
 | `Orders` | Multi-tenant | ✅ Migración creada (`AddOrdersPaymentsTenantCounters`) |
 | `OrderItems` | Multi-tenant (no AppEntity) | ✅ Migración creada |
-| `Payments` | Multi-tenant | ✅ Migración creada (solo lo minimo: sin webhook/idempotencia, ver `domain/payments.md`) |
-| `PaymentEventsProcessed` | Multi-tenant | ❌ Pendiente (Fase 8, webhook) |
+| `Payments` | Multi-tenant | ✅ Migración creada |
+| `PaymentEventsProcessed` | Global (sin `TenantId`) | ✅ Migración creada (`AddPaymentEventsProcessed`) |
 | `TenantCounters` | Multi-tenant (PK compuesta, sin `Id`) | ✅ Migración creada |
 | `AuditLogs` | Multi-tenant | ❌ Pendiente |
 
@@ -170,10 +170,7 @@ Snapshot inmutable, no hereda `AppEntity` (igual que `CartItems`, se resuelve vi
 `Subtotal` (`UnitPrice * Quantity`) es calculado en dominio, `Ignore()` en EF — nunca persistido, nunca
 puede desincronizarse.
 
-## Tabla: Payments (implementada, subconjunto minimo)
-
-> Solo lo que Checkout necesita hoy: crear el `Payment` inicial. Sin webhook ni idempotencia — eso
-> agrega `PaymentEventsProcessed` y mas columnas en Fase 8, ver `domain/payments.md`.
+## Tabla: Payments (implementada)
 
 | Columna | Tipo | Nullable | Notas |
 |---|---|---|---|
@@ -181,7 +178,7 @@ puede desincronizarse.
 | `TenantId` | `uniqueidentifier` | No | — |
 | `OrderId` | `uniqueidentifier` | No | FK a Orders (`FK_Payments_Orders_OrderId`, `Restrict`) — la direccion real de la relacion circular con `Orders.PaymentId` |
 | `Status` | `tinyint` | No | 0=Initiated, 1=Authorized, 2=Captured, 3=Failed, 4=Refunded |
-| `Provider` | `nvarchar(50)` | No | `'fake'` hoy — Bancard/PagoPar en Fase 8 |
+| `Provider` | `nvarchar(50)` | No | `'fake'` hoy — Bancard/PagoPar cuando exista su adapter real |
 | `ProviderPaymentId` | `nvarchar(200)` | Sí | — |
 | `ProviderPaymentUrl` | `nvarchar(1000)` | Sí | — |
 | `Amount` | `decimal(18,2)` | No | CHECK >= 0 |
@@ -194,7 +191,26 @@ puede desincronizarse.
 | Índice | Tipo |
 |---|---|
 | `IX_Payments_OrderId` | IX |
-| `IX_Payments_Provider_ProviderPaymentId` (`Provider`, `ProviderPaymentId`) WHERE `ProviderPaymentId IS NOT NULL` | IX filtrado — el webhook (Fase 8) buscara por esta combinacion |
+| `IX_Payments_Provider_ProviderPaymentId` (`Provider`, `ProviderPaymentId`) WHERE `ProviderPaymentId IS NOT NULL` | IX filtrado — el webhook lo usa para resolver el Payment sin tenant conocido |
+
+## Tabla: PaymentEventsProcessed (implementada)
+
+> Global, sin `TenantId` ni Global Query Filter: el chequeo de idempotencia ocurre antes de que el
+> tenant se conozca, y `(Provider, EventId)` ya es unico a nivel provider. Ver `domain/payments.md`
+> "Flujo de webhook idempotente".
+
+| Columna | Tipo | Nullable | Notas |
+|---|---|---|---|
+| `Id` | `uniqueidentifier` | No | PK |
+| `Provider` | `nvarchar(50)` | No | — |
+| `EventId` | `nvarchar(200)` | No | Id del evento segun el provider |
+| `ProcessedAtUtc` | `datetime2` | No | — |
+
+### Índices de PaymentEventsProcessed
+
+| Índice | Tipo |
+|---|---|
+| `UQ_PaymentEventsProcessed_Provider_EventId` (`Provider`, `EventId`) | UNIQUE |
 
 ## Tabla: TenantCounters (para OrderNumber, implementada)
 

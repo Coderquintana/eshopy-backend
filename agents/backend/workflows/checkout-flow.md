@@ -4,9 +4,10 @@
 > Redefinido 2026-07-26 contra los patrones reales de Tenants/Store. Ver `domain/carts.md`,
 > `domain/orders.md` y `domain/payments.md` para el detalle de cada pieza.
 >
-> **Estado real (2026-07-26): Pasos 1-2 (Carrito → Checkout) implementados y verificados en vivo.**
-> Del Paso 3 en adelante (pago en provider externo real, webhook de confirmación) sigue siendo diseño,
-> no implementado — Fase 8. Ver tabla "Estado de implementación" al final del doc.
+> **Estado real (2026-07-26): Pasos 1, 2 y 4 (Carrito → Checkout → Webhook) implementados y
+> verificados en vivo.** El Paso 3 (pago en un provider externo REAL) sigue siendo diseño — hoy se
+> prueba con `FakePaymentProviderAdapter` (dev-only, siempre exitoso), no con Bancard/PagoPar
+> reales, bloqueados sin su documentación de API. Ver tabla "Estado de implementación" al final.
 
 ## Actores
 
@@ -137,28 +138,35 @@ para el porque de este orden especifico):
 ## Paso 3: Pago en provider externo
 
 - Buyer es redirigido a `paymentUrl`
-- Completa el pago en Bancard/PagoPar
+- Completa el pago en Bancard/PagoPar (real, cuando exista) o en el flujo simulado de
+  `FakePaymentProviderAdapter` (dev, hoy)
 - Provider redirige al buyer a la URL de retorno (success/failed)
 - Provider envía webhook asíncrono al backend
 
-## Paso 4: Webhook de confirmación
+## Paso 4: Webhook de confirmación — implementado y verificado en vivo
 
 **Endpoint**: `POST /api/payments/webhooks/{provider}` (excluido de TenantResolutionMiddleware)
-**Auth**: Validación de firma del provider
+**Auth**: Validación de firma del provider, delegada a `IPaymentProviderAdapter.ValidateWebhookSignature`
 
 ```
-1. Validar firma/secret del header X-{Provider}-Signature
-2. Extraer EventId del payload del provider
-3. Verificar que EventId no existe en PaymentEventsProcessed
+1. Validar firma/secret (header y formato propios de cada adapter — el controller pasa el body/headers crudos, no decide el formato)
+2. Extraer EventId del payload (IPaymentProviderAdapter.ParseWebhook)
+3. Verificar que (Provider, EventId) no exista en PaymentEventsProcessed — si ya existe, 200 sin reprocesar
 4. Buscar Payment por (Provider, ProviderPaymentId) — sin tenant conocido, busca en todos los tenants
    (seguro por el Global Query Filter, ver domain/payments.md)
-5. Fijar TenantContext al payment.TenantId encontrado
+5. Fijar TenantContext al payment.TenantId encontrado (sin subdominio)
 6. Según tipo de evento:
-   - Capturado: Payment → Captured, Order → Paid
-   - Rechazado: Payment → Failed, Order → Cancelled
-7. Guardar EventId en PaymentEventsProcessed
-8. Retornar 200 OK (siempre, salvo firma inválida → 401)
+   - Captured: Payment → Captured, Order → Paid
+   - Failed: Payment → Failed, Order → Cancelled
+   - Refunded: Payment → Refunded, Order → Refunded
+7. IPaymentWebhookWriter.ApplyAsync(...): persiste Payment + Order + el registro en PaymentEventsProcessed atomicamente
+8. Retornar 200 OK (siempre que la firma sea valida y el Payment se encuentre, incluso en eventos ya procesados)
 ```
+
+> Con `fake` (dev-only, ver `domain/payments.md`): header `X-Fake-Signature` = constante
+> `FakePaymentProviderAdapter.WebhookSecret`, body `{ eventId, providerPaymentId, eventType }`. No es
+> el formato de ningun provider real — Bancard/PagoPar tendran su propio header y payload cuando se
+> construyan esos adapters.
 
 ## Paso 5: Resultado del pago (buyer)
 
@@ -183,7 +191,7 @@ El frontend consulta `GET /api/orders/{orderId}` para obtener el estado actual.
 |---|---|
 | Cart | ✅ Implementado y verificado en vivo (Fase 6), ver `domain/carts.md` |
 | Checkout / Order | ✅ Implementado y verificado en vivo (Fase 7, 2026-07-26), incluye el `Payment` inicial (`FakePaymentProviderAdapter`). Ver `domain/orders.md` — incluye el bug de concurrencia real encontrado y corregido en el smoke test |
-| Payment / Webhook | ❌ No implementado (Fase 8): webhook, idempotencia (`PaymentEventsProcessed`), adapters reales Bancard/PagoPar. Ver `domain/payments.md` |
+| Payment / Webhook | ✅ Webhook, idempotencia (`PaymentEventsProcessed`) y transiciones implementados y verificados en vivo (2026-07-26). ❌ Adapters reales Bancard/PagoPar — bloqueados sin su documentación de API. Ver `domain/payments.md` |
 | Productos (catálogo público) | ✅ Implementado |
 | Store info | ✅ Implementado (`GET/PUT /api/store` reales, ya no hardcodeado) |
 | Tenant / Onboarding / Usuarios | ✅ Implementado (Fase 4 completa) |

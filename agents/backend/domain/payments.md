@@ -1,15 +1,9 @@
 # Domain — Payments
 
 > Entidades `Payment` + `PaymentEventsProcessed`: transacciones y webhooks idempotentes.
-> Redefinido 2026-07-26: agrega como el webhook resuelve el tenant sin subdominio (no existia
-> respuesta a esto en el diseño original) y acota el alcance de los adapters reales.
->
-> **Implementado parcialmente 2026-07-26** (Fase 7, como prerequisito de Checkout): la entidad
-> `Payment` y un puerto minimo (`IPaymentProviderAdapter.InitiateAsync` + `FakePaymentProviderAdapter`)
-> ya existen y estan verificados en vivo — ver `domain/orders.md`. Todo lo demas en este doc (webhook,
-> `PaymentEventsProcessed`, `ValidateWebhookSignature`/`ParseWebhookAsync`, adapters reales) sigue sin
-> implementar, Fase 8. La seccion "Contrato de adaptador" abajo describe el diseño COMPLETO planeado;
-> el contrato REAL hoy es mas chico, ver nota en esa seccion.
+> **Implementado y verificado en vivo 2026-07-26** (Fase 7 dejo el minimo para Checkout; Fase 8
+> agrego el webhook completo el mismo dia). Solo quedan pendientes los adapters reales de
+> Bancard/PagoPar — bloqueados hasta tener su documentacion de API (ver "Proveedores soportados").
 
 ## Payment — Propiedades
 
@@ -38,6 +32,8 @@
 | `ProcessedAtUtc` | `DateTime` | Cuándo se procesó |
 
 > Antes de procesar cualquier webhook, verificar que `(Provider, EventId)` no exista en esta tabla.
+> Implementado sin `TenantId`: el chequeo ocurre antes de que el tenant se conozca, y `EventId` ya es
+> unico a nivel provider — no hace falta acotarlo por tenant.
 
 ## Estados y transiciones (PaymentStatus)
 
@@ -52,6 +48,7 @@
 | Desde → Hacia | Trigger |
 |---|---|
 | Initiated → Authorized | Webhook del provider |
+| Initiated → Captured | Webhook de captura directa (implementado 2026-07-26): varios gateways de redirect no emiten un evento de autorizacion separado, solo confirman en un unico webhook — exigir el paso intermedio rompería ese caso real |
 | Initiated → Failed | Webhook de rechazo o timeout |
 | Authorized → Captured | Webhook de captura |
 | Authorized → Failed | Webhook de error |
@@ -60,10 +57,14 @@
 ## Reglas de dominio
 
 - Un `Payment` solo puede existir asociado a un `Order` en estado `PendingPayment`.
-- El webhook debe validar firma/secret antes de procesar — nunca confiar ciegamente.
-- Si el `EventId` ya está en `PaymentEventsProcessed`, retornar 200 sin reprocessar.
+- El webhook debe validar firma/secret antes de procesar — nunca confiar ciegamente. Implementado
+  via `IPaymentProviderAdapter.ValidateWebhookSignature`.
+- Si el `EventId` ya está en `PaymentEventsProcessed`, retornar 200 sin reprocessar. Implementado.
 - Solo un `Payment` activo por `Order` en MVP (puede haber reintentos si el anterior falló).
-- `Amount` debe coincidir con `Order.TotalAmount`. Validar en webhook.
+- **Pendiente, no implementado todavia**: validar que el monto reportado por el webhook coincida con
+  `Order.TotalAmount`. `WebhookEvent` hoy no lleva `Amount` — se agrega cuando se construya el primer
+  adapter real (Bancard/PagoPar), una vez que se sepa que forma tiene ese dato en cada payload real;
+  fabricarlo ahora seria adivinar un contrato sin caso de uso real que lo ejercite.
 
 ## Flujo de webhook idempotente
 
@@ -80,31 +81,31 @@ POST /api/payments/webhooks/{provider}
   9. Retornar 200 OK
 ```
 
-## Resolucion de tenant en el webhook (sin subdominio)
+## Resolucion de tenant en el webhook (sin subdominio) — implementado
 
-`/api/payments/webhooks/{provider}` ya esta correctamente excluido de `TenantResolutionMiddleware`
-(el provider no envia un Host que matchee un subdominio nuestro). Eso significa que el paso 4 de
-arriba debe buscar `Payment` **a traves de todos los tenants**, algo que ningun otro endpoint hace
-hoy.
+`/api/payments/webhooks/{provider}` esta excluido de `TenantResolutionMiddleware` (el provider no
+envia un Host que matchee un subdominio nuestro). El paso 4 del flujo de arriba busca `Payment` **a
+traves de todos los tenants** — el unico lugar del proyecto que hace esto.
 
-Esto es seguro gracias al Global Query Filter tal como quedo despues del fix de hoy en
-`EShopyDbContext` (bug encontrado en el smoke test real, ver `BACKLOG.md` C-39):
+Es seguro gracias al Global Query Filter (bug encontrado y corregido en el smoke test real de
+Tenants, ver `BACKLOG.md` C-39):
 
 ```csharp
 .HasQueryFilter(p => tenantContext.TenantId == null || p.TenantId == tenantContext.TenantId);
 ```
 
 Con `TenantContext.TenantId` sin fijar (null), el filtro es transparente — la query busca en todos
-los tenants sin necesitar `IgnoreQueryFilters()`. Una vez encontrado el `Payment`, el handler debe
-fijar el tenant **antes** de tocar `Order` (que si esta filtrado):
+los tenants sin necesitar `IgnoreQueryFilters()`. Una vez encontrado el `Payment`,
+`ProcessPaymentWebhookCommandHandler` fija el tenant **antes** de tocar `Order` (que si esta
+filtrado):
 
 ```csharp
-tenantContext.Set(payment.TenantId);  // sin subdominio — requiere el cambio de abajo
+tenantContext.Set(payment.TenantId); // sin subdominio
 ```
 
-Esto requiere ampliar `EShopy.Application/Common/Context/TenantContext.cs`:
-`Set(Guid tenantId, string? subdomain = null)` — el path de `TenantResolutionMiddleware` sigue
-pasando el subdominio real; el path del webhook no tiene uno y no lo necesita.
+`EShopy.Application/Common/Context/TenantContext.cs` tiene `Set(Guid tenantId, string? subdomain =
+null)` — el path de `TenantResolutionMiddleware` sigue pasando el subdominio real; el path del
+webhook no tiene uno y no lo necesita.
 
 ## Proveedores soportados
 
@@ -112,43 +113,67 @@ pasando el subdominio real; el path del webhook no tiene uno y no lo necesita.
 |---|---|---|
 | Bancard | Pasarela local Paraguay | ❌ No implementado — requiere su API real, no se fabrica el contrato sin la documentacion del provider |
 | PagoPar | Pasarela local Paraguay | ❌ No implementado — idem |
-| `FakePaymentProviderAdapter` | Dev-only | Alcance de esta fase: implementa `IPaymentProviderAdapter` siempre exitoso, permite probar el flujo completo (checkout → webhook → Order Paid) sin credenciales reales. Mismo espiritu que los fakes en `EShopy.Tests.Integration/Support/` |
+| `FakePaymentProviderAdapter` | Dev-only | ✅ Implementado y verificado en vivo: `InitiateAsync` siempre exitoso + `ValidateWebhookSignature`/`ParseWebhook` con un formato **propio, inventado** (no el de ningun provider real) — permite probar el flujo completo (checkout → webhook → Order Paid) sin credenciales reales. Firma: header `X-Fake-Signature` debe matchear la constante `FakePaymentProviderAdapter.WebhookSecret`. Payload: `{ "eventId", "providerPaymentId", "eventType": "Captured"\|"Failed"\|"Refunded" }` (case-sensitive) |
 
-## Contrato de adaptador
+## Contrato de adaptador (implementado)
 
-Diseño completo planeado (incluye lo que falta para el webhook, Fase 8):
-
-```csharp
-public interface IPaymentProviderAdapter
-{
-    string Provider { get; }
-    Task<InitiatePaymentResult> InitiateAsync(PaymentRequest request, CancellationToken ct);
-    bool ValidateWebhookSignature(HttpRequest request, string secret);
-    Task<WebhookEvent> ParseWebhookAsync(HttpRequest request, CancellationToken ct);
-}
-```
-
-**Lo que existe hoy** (`EShopy.Application/Common/Payments/IPaymentProviderAdapter.cs`) es el
-subconjunto que Checkout necesita — nada mas, para no fabricar la forma de los metodos de webhook sin
-haber diseñado todavia el webhook (eso es Fase 8):
+Corregido durante la implementacion: el diseño original tenia `ValidateWebhookSignature(HttpRequest
+request, ...)`/`ParseWebhookAsync(HttpRequest request, ...)`, pero `EShopy.Application` no depende de
+ASP.NET Core (mismo principio que el resto del proyecto). El controller lee el body crudo y los
+headers, y se los pasa al adapter como texto/diccionario — cada adapter interpreta ese formato con la
+convencion propia de su provider:
 
 ```csharp
 public interface IPaymentProviderAdapter
 {
     string Provider { get; }
     Task<InitiatePaymentResult> InitiateAsync(InitiatePaymentRequest request, CancellationToken ct);
+    bool ValidateWebhookSignature(string rawBody, IReadOnlyDictionary<string, string> headers);
+    WebhookEvent ParseWebhook(string rawBody);
+}
+
+public sealed record WebhookEvent(string EventId, string ProviderPaymentId, PaymentWebhookEventType EventType);
+public enum PaymentWebhookEventType { Captured, Failed, Refunded }
+```
+
+Puede haber mas de un adapter registrado a la vez (uno por provider soportado); el handler del
+webhook resuelve el que corresponda buscando por `Provider` sobre `IEnumerable<IPaymentProviderAdapter>`
+— asi que agregar Bancard/PagoPar cuando haya documentacion es solo registrar una implementacion mas,
+sin tocar el resto del flujo.
+
+## Escritura atomica del webhook (`IPaymentWebhookWriter`)
+
+Mismo espiritu que `ICheckoutWriter` — un writer angosto de un solo caso de uso, no un
+`IUnitOfWork` generico (ver GOVERNANCE.md):
+
+```csharp
+public interface IPaymentWebhookWriter
+{
+  Task<Payment?> FindByProviderPaymentIdAsync(string provider, string providerPaymentId, CancellationToken ct);
+  Task<bool> IsEventProcessedAsync(string provider, string eventId, CancellationToken ct);
+  Task ApplyAsync(Payment payment, Order order, string provider, string eventId, DateTime processedAtUtc, CancellationToken ct);
 }
 ```
+
+`ApplyAsync` persiste `Payment` + `Order` + el registro en `PaymentEventsProcessed` en un solo
+`SaveChangesAsync` — sin SQL crudo, sin transaccion explicita, mismo patron que el resto del
+proyecto.
 
 ## Endpoints
 
 | Método | Ruta | Auth | Descripción |
 |---|---|---|---|
-| POST | `/api/payments` | CatalogWrite* | Iniciar pago. Retorna `paymentUrl` |
-| POST | `/api/payments/webhooks/{provider}` | Firma provider | Webhook idempotente |
+| POST | `/api/payments/webhooks/{provider}` | Firma del provider (validada por el adapter) | Webhook idempotente |
+
+> No existe un `POST /api/payments` independiente: `Payment` se crea internamente dentro de
+> `POST /api/checkout` (ver `domain/orders.md`) — el diseño original lo sugeria como endpoint propio,
+> pero no hay un caso de uso real que inicie un pago sin pasar por checkout.
 
 ## Estado de implementación
 
-❌ **No implementado.** Planificado en Fase 8 del backlog. Diseño redefinido 2026-07-26: puerto,
-webhook e idempotencia listos para implementar con `FakePaymentProviderAdapter`; los adapters reales
-de Bancard/PagoPar quedan bloqueados hasta tener su documentacion de API.
+✅ **Implementado y verificado en vivo** (2026-07-26): webhook completo (validacion de firma,
+idempotencia via `PaymentEventsProcessed`, resolucion de tenant sin subdominio, transiciones de
+Payment/Order) probado contra SQL Server real — captura exitosa, fallo, reenvio del mismo EventId
+(sin duplicar), firma invalida (401) y `ProviderPaymentId` desconocido (404). Los adapters reales de
+Bancard/PagoPar quedan bloqueados hasta tener su documentacion de API — el puerto y el resto del
+flujo ya estan listos para recibirlos.

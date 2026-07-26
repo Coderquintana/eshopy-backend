@@ -81,15 +81,16 @@ Cada caso incluye: **Given** (contexto), **When** (acción), **Then** (resultado
 
 ---
 
-## Módulo: Payments y Webhooks (implementar cuando estén disponibles)
+## Módulo: Payments y Webhooks — implementado (Fase 8, 2026-07-26)
 
-| ID | Given | When | Then |
-|---|---|---|---|
-| PW-01 | EventId nuevo | Webhook Captured | Payment → Captured, Order → Paid |
-| PW-02 | EventId ya procesado | Mismo webhook enviado de nuevo | 200 OK, estado sin cambiar |
-| PW-03 | Firma inválida en header | Webhook con secret incorrecto | 401 `PAYMENT_WEBHOOK_INVALID` |
-| PW-04 | Monto del webhook distinto al Order | Webhook Captured | Error / log de alerta |
-| PW-05 | Webhook Failed | Webhook de rechazo | Payment → Failed, Order → Cancelled |
+| ID | Given | When | Then | Estado |
+|---|---|---|---|---|
+| PW-01 | EventId nuevo | Webhook Captured | Payment → Captured, Order → Paid | ✅ `PaymentWebhookFlowTests.Webhook_WithCapturedEvent_ShouldMarkPaymentCapturedAndOrderPaid` + verificado en vivo |
+| PW-02 | EventId ya procesado | Mismo webhook enviado de nuevo | 200 OK, estado sin cambiar | ✅ `PaymentWebhookFlowTests.Webhook_WithDuplicateEventId_ShouldBeIdempotent` + verificado en vivo (una sola fila en `PaymentEventsProcessed`) |
+| PW-03 | Firma inválida en header | Webhook con secret incorrecto | 401 `PAYMENT_WEBHOOK_INVALID` | ✅ `PaymentWebhookFlowTests.Webhook_WithInvalidSignature_ShouldReturn401` + verificado en vivo |
+| PW-04 | Monto del webhook distinto al Order | Webhook Captured | Error / log de alerta | ❌ **No implementado**: `WebhookEvent` todavia no lleva `Amount` (ver `domain/payments.md` "Reglas de dominio") — se agrega cuando exista el primer adapter real y se sepa la forma real de ese dato |
+| PW-05 | Webhook Failed | Webhook de rechazo | Payment → Failed, Order → Cancelled | ✅ `PaymentWebhookFlowTests.Webhook_WithFailedEvent_ShouldMarkOrderCancelled` + verificado en vivo |
+| PW-06 | ProviderPaymentId desconocido | Webhook con referencia inexistente | 404 `NOT_FOUND` | ✅ `PaymentWebhookFlowTests.Webhook_WithUnknownProviderPaymentId_ShouldReturn404` + verificado en vivo |
 
 ---
 
@@ -110,8 +111,8 @@ Cada caso incluye: **Given** (contexto), **When** (acción), **Then** (resultado
 - [ ] PD-01 a PD-06 pasando
 - [ ] PS-01 a PS-06 pasando
 - [ ] PA-01 a PA-08 pasando
-- [ ] CC-01, CC-02 pasando
-- [ ] CO-01 a CO-05 pasando
-- [ ] PW-01 a PW-05 pasando
+- [ ] CC-01 pasando (RowVersion no cableado end-to-end todavia, ver D-03 en BACKLOG.md); CC-02 verificado en vivo, sin test automatizado (ver tabla arriba)
+- [x] CO-01, CO-03, CO-05 pasando; CO-02 cubierto por logica sin test dedicado; CO-04 no enforced (ver tabla arriba)
+- [x] PW-01, PW-02, PW-03, PW-05, PW-06 pasando (PW-04 no implementado, ver tabla arriba)
 - [ ] SL-01 a SL-04 pasando
 - [ ] Tests de integración en CI pasando sin flakiness

@@ -39,8 +39,8 @@
 | `TENANT_CANCELLED` | 403 | El tenant fue cancelado — bloqueado por `TenantResolutionMiddleware` |
 | `EXTERNAL_SERVICE_ERROR` | 502 | Falla al comunicarse con un servicio externo (ej. Keycloak Admin API) |
 | `ORDER_INVALID_STATE` | 409 | Transición de orden/pago no permitida |
-| `PAYMENT_WEBHOOK_INVALID` | 401 | Webhook con firma inválida (diseño, no implementado) |
-| `PAYMENT_PROVIDER_ERROR` | 502 | Error al comunicarse con el provider de pago (diseño, no implementado) |
+| `PAYMENT_WEBHOOK_INVALID` | 401 | Webhook con firma inválida |
+| `PAYMENT_PROVIDER_ERROR` | 502 | Error al comunicarse con el provider de pago (diseño — sin uso real hasta que exista un adapter real de Bancard/PagoPar) |
 | `GENERIC_ERROR` | 500 | Error interno no controlado |
 
 ---
@@ -460,16 +460,37 @@ Cambia el estado del pedido manualmente (ej. cancelar, marcar reembolsado).
 
 ---
 
-## Payments endpoints (diseño, no implementado)
+## Payments — Webhook
 
 > `Payment` se crea internamente dentro de `POST /api/checkout` (ver arriba) — no existe un endpoint
-> publico para iniciar un pago por separado. Lo que sigue sin implementar (Fase 8) es el webhook y los
-> adapters reales de Bancard/PagoPar; hoy `IPaymentProviderAdapter` solo tiene una implementacion
-> (`FakePaymentProviderAdapter`, dev-only, siempre exitosa).
+> publico para iniciar un pago por separado. Los adapters reales de Bancard/PagoPar siguen sin
+> implementar (bloqueados sin su documentacion de API); hoy `IPaymentProviderAdapter` solo tiene
+> `FakePaymentProviderAdapter` (dev-only, siempre exitosa, con firma/payload propios — ver
+> `domain/payments.md`).
 
-| Método | Ruta | Auth | Descripción |
-|---|---|---|---|
-| POST | `/api/payments/webhooks/{provider}` | Firma provider | Webhook idempotente |
+### POST /api/payments/webhooks/{provider}
+Recibe y procesa un evento de webhook de pago. Idempotente por `(provider, eventId)`. Excluido de
+`TenantResolutionMiddleware` — resuelve el tenant internamente via `(provider, providerPaymentId)`.
+
+**Auth**: Firma/secret propia del provider, validada por `IPaymentProviderAdapter.ValidateWebhookSignature`.
+
+**Request**: body crudo + headers, formato especifico de cada provider (el adapter lo interpreta).
+Para `fake` (dev-only): header `X-Fake-Signature` = `FakePaymentProviderAdapter.WebhookSecret`,
+body:
+```json
+{
+  "eventId": "evt-123",
+  "providerPaymentId": "fake-payment-...",
+  "eventType": "Captured"
+}
+```
+> `eventType`: `"Captured"` \| `"Failed"` \| `"Refunded"` (case-sensitive).
+
+**Response 200:** vacio — tanto para un evento nuevo procesado como para uno ya procesado (idempotencia).
+
+**Errores**: `PAYMENT_WEBHOOK_INVALID` (401, firma invalida), `NOT_FOUND` (404, provider no soportado
+o `ProviderPaymentId` desconocido), `ORDER_INVALID_STATE` (409, transicion de Payment/Order no
+permitida — no deberia pasar en operacion normal, indica un evento fuera de orden).
 
 ---
 

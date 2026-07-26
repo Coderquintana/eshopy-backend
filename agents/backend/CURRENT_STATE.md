@@ -1,6 +1,6 @@
 # CURRENT_STATE - Estado actual del codigo
 
-> Reauditado 2026-07-26 contra HEAD. Sesion larga: revision de arquitectura + modulo Tenants/Store completo + infra Docker Compose + Carrito + Pedidos/Pagos (minimo).
+> Reauditado 2026-07-26 contra HEAD. Sesion larga: revision de arquitectura + modulo Tenants/Store completo + infra Docker Compose + Carrito + Pedidos + webhook de Pagos (solo faltan los adapters reales Bancard/PagoPar).
 > Refleja el codigo real, no la documentacion ideal. Ver [BACKLOG.md](BACKLOG.md) seccion "DEUDA TECNICA / ARQUITECTURA" para gaps de escalabilidad no listados en la tabla de abajo.
 >
 > **Smoke test real (2026-07-26)**: `docker compose up -d` + migraciones + API corriendo, flujo
@@ -8,9 +8,10 @@
 > Owner → activacion SUPERADMIN → `GET/PUT /api/store` → crear un Product real → invitar un Staff
 > (F4-05) → Carrito completo (F6, add/acumular/get/update/delete) → Checkout completo (F7,
 > carrito → Order → Payment → admin list/detail/status) → **25 checkouts concurrentes reales** contra
-> el mismo tenant/producto. Encontro y arreglo 3 bugs que los tests con fakes no podian atrapar
-> (Tenants: C-39/C-40; Orders: C-45, violacion de indice unico bajo contencion real en vez de
-> `DbUpdateConcurrencyException`) — Carrito paso sin bugs.
+> el mismo tenant/producto → webhook de pagos completo (F8: captura, fallo, reenvio idempotente,
+> firma invalida, ProviderPaymentId desconocido). Encontro y arreglo 3 bugs que los tests con fakes
+> no podian atrapar (Tenants: C-39/C-40; Orders: C-45, violacion de indice unico bajo contencion real en vez de
+> `DbUpdateConcurrencyException`) — Carrito y el webhook de Pagos pasaron sin bugs nuevos.
 
 ---
 
@@ -26,7 +27,7 @@
 | **Subscriptions** | ?? Minimo (Fase 4) | Entidad y maquina de estados completas, se crea en el onboarding. Sin integracion de pago real: `PriceAmount` siempre 0 (precios TBD), sin renovacion automatica ni webhook — todo eso es Fase 8 |
 | **Carts** | ? Implementado (Fase 6) | `Cart`/`CartItem` — primer agregado con coleccion hija encapsulada (`Items` via backing field). `GET/POST/PUT/DELETE /api/cart[/items/{productId}]`, anonimo. Sin precio en `CartItem` (se lee en vivo). Falta solo F6-04 (limpieza de carritos expirados, no bloqueante) |
 | **Orders** | ? Implementado (Fase 7) | `Order`/`OrderItem`, `ICheckoutWriter` (writer angosto, sin SQL crudo). `POST /api/checkout` + `GET /api/orders[/{id}]` + `PATCH /api/orders/{id}/status`. Verificado en vivo, incluye test de concurrencia real (25 checkouts simultaneos) que encontro y corrigio un bug (C-45) |
-| **Payments** | ?? Minimo (prerequisito de Fase 7) | Solo lo que Checkout necesita: `Payment` entidad + `IPaymentProviderAdapter.InitiateAsync` + `FakePaymentProviderAdapter` (dev-only, siempre exitoso). Sin webhook, sin `PaymentEventsProcessed`, sin adapters reales Bancard/PagoPar — eso sigue en Fase 8 |
+| **Payments** | ? Implementado (Fase 8, webhook completo) | `Payment`, `PaymentEventProcessed` (idempotencia), `IPaymentWebhookWriter`. `POST /api/payments/webhooks/{provider}` publico. Verificado en vivo: captura, fallo, reenvio idempotente, firma invalida, `ProviderPaymentId` desconocido. Solo faltan los adapters reales Bancard/PagoPar (F8-03/04) — bloqueados sin su documentacion de API |
 
 ---
 
@@ -111,28 +112,36 @@ Estado: **? Completo**
 
 ---
 
-## Orders / Payments (minimo)
+## Orders / Payments
 
 - Domain: `EShopy.Domain/Orders/{Order,OrderItem,OrderStatus,OrderItemData}.cs` — `Order` es agregado
   raiz con coleccion encapsulada (`Items`, mismo patron que `Cart`). `OrderNumber` empieza en 0,
   asignado por `ICheckoutWriter` via `AssignOrderNumber` (idempotente a proposito, ver C-45).
-  `EShopy.Domain/Payments/{Payment,PaymentStatus}.cs`. `EShopy.Domain/Common/Counters/TenantCounter.cs`
-  (contador atomico generico por tenant, `CurrentValue` concurrency token EF).
+  `EShopy.Domain/Payments/{Payment,PaymentStatus,PaymentEventProcessed}.cs`.
+  `EShopy.Domain/Common/Counters/TenantCounter.cs` (contador atomico generico por tenant,
+  `CurrentValue` concurrency token EF).
 - Application: `EShopy.Application/Orders/` (`IOrderRepository`, `ICheckoutWriter`, Commands
   `Checkout`/`ChangeOrderStatus`, Queries `GetOrderById`/`GetOrders`),
-  `EShopy.Application/Common/Payments/IPaymentProviderAdapter.cs` (solo `Provider` + `InitiateAsync` —
-  metodos de webhook deliberadamente no incluidos todavia, ver `domain/payments.md`).
+  `EShopy.Application/Payments/` (`IPaymentWebhookWriter`, `ProcessPaymentWebhookCommand`+Handler),
+  `EShopy.Application/Common/Payments/IPaymentProviderAdapter.cs` (`Provider`, `InitiateAsync`,
+  `ValidateWebhookSignature`, `ParseWebhook` — sin tipos de ASP.NET Core, ver GOVERNANCE.md).
 - API:
   - `EShopy.Api/Controllers/Public/CheckoutController.cs` (`AllowAnonymous`, header `X-Cart-Token`)
   - `EShopy.Api/Controllers/Admin/OrdersController.cs` (`OrdersRead`/`OrdersWrite`)
+  - `EShopy.Api/Controllers/Public/PaymentsController.cs` (`AllowAnonymous`,
+    `POST /api/payments/webhooks/{provider}`, excluido de `TenantResolutionMiddleware`)
 - Infraestructura: `EShopy.Infrastructure/Orders/{EfOrderRepository,EfCheckoutWriter}.cs`,
-  `EShopy.Infrastructure/Payments/FakePaymentProviderAdapter.cs` (dev-only, siempre exitoso),
-  `Persistence/Configurations/{Order,OrderItem,Payment,TenantCounter}Configuration.cs`. FK circular
-  Order↔Payment: solo `Payments.OrderId` tiene FK real, `Orders.PaymentId` es una columna sin
-  constraint (evita el ciclo, ver comentarios en `OrderConfiguration.cs`).
+  `EShopy.Infrastructure/Payments/{FakePaymentProviderAdapter,EfPaymentWebhookWriter}.cs`,
+  `Persistence/Configurations/{Order,OrderItem,Payment,TenantCounter,PaymentEventProcessed}Configuration.cs`.
+  FK circular Order↔Payment: solo `Payments.OrderId` tiene FK real, `Orders.PaymentId` es una columna
+  sin constraint (evita el ciclo, ver comentarios en `OrderConfiguration.cs`).
 - `EfCheckoutWriter.CreateAsync` reintenta hasta 5 veces atrapando tanto `DbUpdateConcurrencyException`
   como `DbUpdateException` con `SqlException` 2601/2627 — ver C-45 para el bug real que hizo falta el
   segundo catch.
+- `FakePaymentProviderAdapter` implementa un formato de webhook propio, dev-only (header
+  `X-Fake-Signature` + JSON `{eventId, providerPaymentId, eventType}`) — NO el formato de ningun
+  provider real, solo para ejercitar el codigo del webhook sin la documentacion de Bancard/PagoPar
+  (ver `domain/payments.md`).
 
 ---
 
@@ -141,7 +150,7 @@ Estado: **? Completo**
 | Suite | Tests | Estado |
 |---|---|---|
 | `EShopy.Tests.Unit` | 115 tests | ? (incluye `CartTests`, `CartValidatorTests`, `TenantTests`, `SubscriptionTests`, `TenantValidatorTests`, `InviteTenantUserCommandValidatorTests`, `SubdomainResolverTests`, `OrderTests`, `PaymentTests`, `CheckoutCommandValidatorTests`) |
-| `EShopy.Tests.Integration` | 17 tests | ? Incluye seguridad 401/403/200, onboarding, invitacion de usuarios, flujo de carrito y flujo de checkout end-to-end (`CheckoutFlowTests`: checkout completo, email invalido, carrito vacio, transicion de estado invalida) |
+| `EShopy.Tests.Integration` | 22 tests | ? Incluye seguridad 401/403/200, onboarding, invitacion de usuarios, flujo de carrito, flujo de checkout end-to-end (`CheckoutFlowTests`) y flujo de webhook de pagos (`PaymentWebhookFlowTests`: captura, fallo, idempotencia, firma invalida, payment no encontrado) |
 
 Nuevos tests de seguridad:
 
@@ -167,6 +176,8 @@ Soporte de tests:
 - `EShopy.Tests.Integration/Support/{InMemoryOrdersState,InMemoryOrderRepository,InMemoryCheckoutWriter}.cs`
   (mismo patron: `ICheckoutWriter` in-memory simula la asignacion atomica con un lock, no el
   concurrency-token EF real — esa garantia se prueba contra SQL Server real, ver C-45)
+- `EShopy.Tests.Integration/Support/InMemoryPaymentWebhookWriter.cs` (reusa `InMemoryOrdersState`;
+  Payment/Order llegan mutados por referencia, solo registra el evento como procesado)
 
 ---
 
@@ -181,6 +192,7 @@ Soporte de tests:
   - `20260726164030_AddTenantsStoresSubscriptions`
   - `20260726183727_AddCartsCartItems`
   - `20260726191023_AddOrdersPaymentsTenantCounters`
+  - `20260726195952_AddPaymentEventsProcessed`
 - Si se elimina manualmente una tabla, EF no la recrea al iniciar mientras `__EFMigrationsHistory` siga marcado; ejecutar `dotnet ef database update` con historial consistente. (B-02 sigue abierto: no hay auto-migracion controlada en el arranque)
 
 ---
