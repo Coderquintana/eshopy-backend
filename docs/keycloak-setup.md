@@ -2,67 +2,48 @@
 
 Guia para levantar y configurar Keycloak para eShopy en desarrollo.
 
-## 1) Docker Compose
+## 0) Levantar todo el entorno local
 
-Crear archivo `docker-compose.keycloak.yml`:
-
-```yaml
-version: '3.8'
-services:
-  keycloak:
-    image: quay.io/keycloak/keycloak:24.0
-    environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
-      KC_DB_USERNAME: keycloak
-      KC_DB_PASSWORD: keycloak
-      KC_HOSTNAME: localhost
-      KC_HOSTNAME_PORT: 8080
-      KC_HTTP_ENABLED: true
-    ports:
-      - "8080:8080"
-    command: start-dev
-    depends_on:
-      - postgres
-
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: keycloak
-      POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: keycloak
-    ports:
-      - "5432:5432"
-    volumes:
-      - keycloak_db:/var/lib/postgresql/data
-
-volumes:
-  keycloak_db:
-```
-
-Levantar servicios:
+El entorno local (SQL Server + Keycloak + su propia base Postgres) esta definido en
+`docker-compose.yml`, en la raiz del repo. No hace falta copiar comandos a mano.
 
 ```bash
-docker compose -f docker-compose.keycloak.yml up -d
+docker compose up -d
 ```
 
-## 2) Importar realm recomendado
+Esto levanta:
 
-Se incluye un export listo para desarrollo en:
+- `sqlserver` — SQL Server 2022 en `localhost:1433` (SA / ver `MSSQL_SA_PASSWORD` en el compose)
+- `keycloak-db` — Postgres para el storage interno de Keycloak
+- `keycloak` — Keycloak en `localhost:8080`, con `--import-realm` importando automaticamente
+  `Documentation/Keycloak/realm-eshopy.json` al arrancar (no requiere import manual)
+
+Aplicar migraciones contra el SQL Server del compose:
+
+```bash
+dotnet ef database update --project EShopy.Infrastructure --startup-project EShopy.Api
+```
+
+Para apagar el entorno (conservando los datos en los volumenes):
+
+```bash
+docker compose down
+```
+
+## 1) Realm importado automaticamente
+
+El realm `eshopy` se importa solo al arrancar `keycloak` (ver seccion 0). El export vive en:
 
 - `Documentation/Keycloak/realm-eshopy.json`
 
-Importar en startup:
+Incluye ademas el service account de `eshopy-api` con los roles `manage-users`/`view-users`
+de `realm-management`, necesarios para que el backend cree usuarios (Owner de un tenant nuevo)
+via la Keycloak Admin API durante el onboarding.
 
-```bash
-docker run --rm -v %cd%/Documentation/Keycloak:/opt/keycloak/data/import quay.io/keycloak/keycloak:24.0 start-dev --import-realm
-```
+Si necesitas reimportar despues de un cambio manual en el realm: `docker compose down -v` (borra
+los volumenes) y `docker compose up -d` de nuevo.
 
-Si prefieres import manual desde UI: Realm settings > Action > Partial import.
-
-## 3) Configuracion manual (alternativa)
+## 2) Configuracion manual (alternativa, si no usas el compose)
 
 1. Abrir `http://localhost:8080`
 2. Login: `admin / admin`
@@ -83,7 +64,7 @@ Si prefieres import manual desde UI: Realm settings > Action > Partial import.
    - `admin@tenant1.local` (rol `TENANT_ADMIN`)
    - `staff@tenant1.local` (rol `TENANT_STAFF`)
 
-## 4) Claim de permisos (requerido por backend)
+## 3) Claim de permisos (requerido por backend)
 
 Las policies del backend se validan contra claim `permissions`.
 
@@ -104,15 +85,18 @@ Mapeo recomendado por rol:
 - `TENANT_ADMIN`: `store.read`, `catalog.*`, `orders.*`, `payments.read`
 - `TENANT_STAFF`: `store.read`, `catalog.read`, `orders.read`
 
-## 5) Config backend
+## 4) Config backend
 
 En `EShopy.Api/appsettings.Development.json`:
 
 - `Keycloak:Authority = http://localhost:8080/realms/eshopy`
 - `Keycloak:Audience = eshopy-api`
 - El `access_token` debe incluir `aud = eshopy-api`.
+- `Keycloak:AdminBaseUrl`, `Keycloak:AdminClientId`, `Keycloak:AdminClientSecret` — usados por el
+  backend para provisionar el usuario Owner en Keycloak durante el onboarding de un tenant nuevo
+  (reutiliza el service account de `eshopy-api`, ver seccion 1).
 
-## 6) Token de prueba (Postman)
+## 5) Token de prueba (Postman)
 
 Client sugerido para password grant en dev: `eshopy-api`.
 
@@ -132,7 +116,7 @@ Body (`x-www-form-urlencoded`):
 
 Usar `access_token` como `Bearer` en endpoints admin.
 
-## 7) Troubleshooting 401 invalid audience
+## 6) Troubleshooting 401 invalid audience
 
 Si la API responde `401` con `SecurityTokenInvalidAudienceException`:
 

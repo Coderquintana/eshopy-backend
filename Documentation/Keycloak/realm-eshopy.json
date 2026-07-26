@@ -122,6 +122,14 @@
         "catalog.read",
         "orders.read"
       ]
+    },
+    {
+      "username": "service-account-eshopy-api",
+      "enabled": true,
+      "serviceAccountClientId": "eshopy-api",
+      "clientRoles": {
+        "realm-management": ["manage-users", "view-users"]
+      }
     }
   ],
   "clients": [

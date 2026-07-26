@@ -13,7 +13,7 @@ public sealed class EShopyDbContextFactory : IDesignTimeDbContextFactory<EShopyD
   public EShopyDbContext CreateDbContext(string[] args)
   {
     var optionsBuilder = new DbContextOptionsBuilder<EShopyDbContext>();
-    var connectionString = "Server=lpc:localhost\\SQLEXPRESS;Database=EShopy.Dev;Trusted_Connection=True;TrustServerCertificate=True;";
+    var connectionString = "Server=localhost,1433;Database=EShopy.Dev;User Id=sa;Password=EShopy_Dev_2026!;TrustServerCertificate=True;";
     optionsBuilder.UseSqlServer(connectionString);
 
     // TenantContext vacío: TenantId = null → el Global Query Filter es transparente en design-time
