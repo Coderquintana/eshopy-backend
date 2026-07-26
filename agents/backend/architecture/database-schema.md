@@ -153,22 +153,14 @@ enforced a nivel DB: no puede haber mas de una suscripcion no cancelada por tena
 
 ## Tabla: TenantCounters (para OrderNumber)
 
-```sql
-CREATE TABLE TenantCounters (
-    TenantId uniqueidentifier NOT NULL,
-    CounterType nvarchar(50) NOT NULL,  -- 'OrderNumber'
-    CurrentValue int NOT NULL DEFAULT 0,
-    PRIMARY KEY (TenantId, CounterType)
-);
-```
+> Redefinido 2026-07-26: sin SQL crudo. Entidad EF normal, atomicidad via concurrency token +
+> reintento — no `UPDLOCK`/`ROWLOCK`. Ver `domain/orders.md` "Escritura atomica (ICheckoutWriter)".
 
-Uso (debe ser atómico):
-```sql
-UPDATE TenantCounters WITH (UPDLOCK, ROWLOCK)
-SET CurrentValue = CurrentValue + 1
-OUTPUT INSERTED.CurrentValue
-WHERE TenantId = @tenantId AND CounterType = 'OrderNumber';
-```
+| Columna | Tipo | Nullable | Notas |
+|---|---|---|---|
+| `TenantId` | `uniqueidentifier` | No | PK compuesta (`TenantId`, `CounterType`) |
+| `CounterType` | `nvarchar(50)` | No | `'OrderNumber'` (extensible a otros contadores por tenant a futuro) |
+| `CurrentValue` | `int` | No | `IsConcurrencyToken()` en la configuracion EF — asi el `UPDATE` generado por EF incluye `WHERE CurrentValue = @valorLeido` automaticamente |
 
 ## Tabla: Carts
 

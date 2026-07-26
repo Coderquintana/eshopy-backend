@@ -64,8 +64,8 @@ _(vacio)_
 | # | Tarea | Descripcion |
 |---|---|---|
 | F7-01 | OrderEntity + OrderItemEntity | Snapshot de precio en item. `Order.OrderNumber` se asigna despues de crear (`AssignOrderNumber`), no en el factory |
-| F7-02 | `ICheckoutWriter` | Writer angosto multi-agregado (Order+OrderItems+Payment+TenantCounters) con transaccion explicita — primera vez que hace falta `BeginTransactionAsync` en el proyecto |
-| F7-03 | OrderNumber con TenantCounters | Secuencial por tenant, UPDLOCK/ROWLOCK, generado DENTRO de `ICheckoutWriter` |
+| F7-02 | `ICheckoutWriter` | Writer angosto multi-agregado (Order+OrderItems+Payment+TenantCounter). Todo trackeado por EF, un solo `SaveChangesAsync` — sin transaccion explicita ni SQL crudo |
+| F7-03 | OrderNumber con TenantCounters | Secuencial por tenant, sin SQL crudo — `CurrentValue` como concurrency token EF + reintento, generado DENTRO de `ICheckoutWriter` |
 | F7-04 | Transiciones OrderStatus | Controladas segun tabla de dominio |
 | F7-05 | Orden de llamada al provider de pago | `adapter.InitiateAsync` ANTES de la escritura local (mismo principio que Keycloak en onboarding), usando `order.Id` como referencia — no `OrderNumber` |
 

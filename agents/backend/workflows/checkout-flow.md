@@ -109,7 +109,7 @@ para el porque de este orden especifico):
 5. Construir Order(PendingPayment) + OrderItems en memoria (Id generado client-side, sin OrderNumber todavia)
 6. Llamar adapter.InitiateAsync(order.Id, TotalAmount, ...) — ANTES de escribir en la DB local
 7. Construir Payment(Initiated) con la respuesta del provider (ProviderPaymentId, paymentUrl)
-8. ICheckoutWriter.CreateAsync(...): genera OrderNumber (TenantCounters, UPDLOCK) y persiste
+8. ICheckoutWriter.CreateAsync(...): genera OrderNumber (TenantCounter como concurrency token EF, sin SQL crudo) y persiste
    Order + OrderItems + Payment en una sola transaccion
 9. Retornar { orderId, orderNumber, totalAmount, paymentUrl }
 ```
@@ -165,7 +165,7 @@ El frontend consulta `GET /api/orders/{orderId}` para obtener el estado actual.
 | Snapshot de precio en OrderItem | Pedidos históricos con precio incorrecto |
 | Idempotencia de webhooks | Doble cobro o doble confirmación |
 | Validar firma del webhook | Fraude: pedidos marcados como pagados sin pago real |
-| OrderNumber atómico (UPDLOCK) | Números de pedido duplicados en concurrencia |
+| OrderNumber atómico (concurrency token + reintento, sin SQL crudo) | Números de pedido duplicados en concurrencia |
 | Verificar Product.Status = Active | Buyer compra producto archivado/Draft |
 
 ## Estado de implementación

@@ -11,7 +11,7 @@
 | `Id` | `Guid` | No | PK |
 | `TenantId` | `Guid` | No | FK tenant |
 | `StoreId` | `Guid` | No | FK store del tenant |
-| `OrderNumber` | `int` | No | Secuencial por tenant. Generado con TenantCounters (UPDLOCK) |
+| `OrderNumber` | `int` | No | Secuencial por tenant. Generado con TenantCounters (concurrency token + reintento, sin SQL crudo) |
 | `Status` | `OrderStatus` | No | Ver tabla de estados |
 | `BuyerEmail` | `string` | No | Email del comprador al momento del checkout |
 | `BuyerName` | `string` | No | Nombre del comprador |
@@ -57,7 +57,7 @@
 
 ## Reglas de dominio
 
-- `OrderNumber` es secuencial por tenant. Usar `TenantCounters` con `UPDLOCK/ROWLOCK` para evitar duplicados en concurrencia.
+- `OrderNumber` es secuencial por tenant. Generado via `TenantCounters` con `CurrentValue` como concurrency token EF + reintento (ver "Escritura atomica" abajo) — sin SQL crudo.
 - `TotalAmount` = suma de todos los `OrderItem.Subtotal`. Calculado al crear.
 - Un `Order` no puede pasar a `Paid` sin un `Payment` con `Status = Captured`.
 - `OrderItems` son inmutables una vez que la Order está creada.
@@ -101,12 +101,34 @@ public interface ICheckoutWriter
 }
 ```
 
-A diferencia de `EfTenantOnboardingWriter` (que solo hace `Add` + un `SaveChangesAsync`), la
-implementacion de este writer mezcla SQL crudo sobre `TenantCounters`
-(`UPDATE ... WITH (UPDLOCK, ROWLOCK) ... OUTPUT INSERTED.CurrentValue`) con entidades trackeadas por
-EF Core — **necesita una transaccion explicita** (`db.Database.BeginTransactionAsync()`), la primera
-vez que hace falta en el proyecto: hasta ahora un solo `SaveChangesAsync` alcanzaba siempre porque
-nunca se combino SQL crudo con `Add()` en la misma operacion.
+**Sin SQL crudo.** `TenantCounters` es una entidad EF normal (`TenantCounter`: `TenantId` + `CounterType`
+como PK compuesta, `CurrentValue` como el resto de las entidades). `CurrentValue` se marca
+`IsConcurrencyToken()` en la configuracion EF — asi el `UPDATE` que genera EF Core automaticamente
+incluye `WHERE CurrentValue = @valorLeido`, y si dos checkouts leen el mismo valor y compiten, el que
+pierde la carrera tira `DbUpdateConcurrencyException` en su `SaveChangesAsync` (0 filas afectadas).
+
+La implementacion es un loop de reintento simple (sin transaccion explicita: un solo
+`SaveChangesAsync` con todo trackeado — `Order`, `OrderItem`s, `Payment` y el `TenantCounter` — ya es
+atomico por si mismo):
+
+```csharp
+for (var attempt = 0; attempt < MaxRetries; attempt++)
+{
+  var counter = await GetOrCreateCounterAsync(tenantId, ct);   // TRACKED
+  counter.Increment();                                          // CurrentValue++
+  order.AssignOrderNumber(counter.CurrentValue);
+
+  db.Add(order); db.AddRange(items); db.Add(payment);
+
+  try { await db.SaveChangesAsync(ct); return counter.CurrentValue; }
+  catch (DbUpdateConcurrencyException) { db.ChangeTracker.Clear(); }  // perdio la carrera, reintentar
+}
+throw new DomainException(ErrorCodes.ConcurrencyConflict, "No se pudo generar el numero de pedido.");
+```
+
+`GlobalExceptionMiddleware` ya sabe mapear `DbUpdateConcurrencyException` a 409 (D-02, hoy) — pero
+**aca no debe llegar al middleware**: el reintento es interno, invisible para el caller salvo que se
+agoten los intentos (raro; solo bajo contencion muy alta sobre el mismo tenant).
 
 ## Orden de llamada al provider de pago
 
