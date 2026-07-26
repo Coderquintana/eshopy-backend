@@ -1,6 +1,8 @@
 # Workflow — Checkout Flow
 
 > Flujo completo: Carrito → Pedido → Pago → Confirmación.
+> Redefinido 2026-07-26 contra los patrones reales de Tenants/Store. Ver `domain/carts.md`,
+> `domain/orders.md` y `domain/payments.md` para el detalle de cada pieza.
 
 ## Actores
 
@@ -95,7 +97,8 @@ Headers: X-Cart-Token: <uuid>
 }
 ```
 
-**Acciones en backend:**
+**Acciones en backend** (orden real, ver `domain/orders.md` "Orden de llamada al provider de pago"
+para el porque de este orden especifico):
 ```
 1. Obtener Cart por CartToken + TenantId
 2. Para cada CartItem:
@@ -103,10 +106,11 @@ Headers: X-Cart-Token: <uuid>
    b. Si no existe o no está Active: retornar PRODUCT_NOT_AVAILABLE (409)
 3. Snapshot de precio: UnitPrice = Product.Price actual
 4. Calcular TotalAmount = Σ(UnitPrice * Quantity)
-5. Generar OrderNumber (TenantCounters con UPDLOCK)
-6. Crear Order(PendingPayment) + OrderItems
-7. Iniciar Payment(Initiated) con provider
-8. Obtener paymentUrl del provider
+5. Construir Order(PendingPayment) + OrderItems en memoria (Id generado client-side, sin OrderNumber todavia)
+6. Llamar adapter.InitiateAsync(order.Id, TotalAmount, ...) — ANTES de escribir en la DB local
+7. Construir Payment(Initiated) con la respuesta del provider (ProviderPaymentId, paymentUrl)
+8. ICheckoutWriter.CreateAsync(...): genera OrderNumber (TenantCounters, UPDLOCK) y persiste
+   Order + OrderItems + Payment en una sola transaccion
 9. Retornar { orderId, orderNumber, totalAmount, paymentUrl }
 ```
 
@@ -137,12 +141,14 @@ Headers: X-Cart-Token: <uuid>
 1. Validar firma/secret del header X-{Provider}-Signature
 2. Extraer EventId del payload del provider
 3. Verificar que EventId no existe en PaymentEventsProcessed
-4. Buscar Payment por ProviderPaymentId
-5. Según tipo de evento:
+4. Buscar Payment por (Provider, ProviderPaymentId) — sin tenant conocido, busca en todos los tenants
+   (seguro por el Global Query Filter, ver domain/payments.md)
+5. Fijar TenantContext al payment.TenantId encontrado
+6. Según tipo de evento:
    - Capturado: Payment → Captured, Order → Paid
    - Rechazado: Payment → Failed, Order → Cancelled
-6. Guardar EventId en PaymentEventsProcessed
-7. Retornar 200 OK (siempre, salvo firma inválida → 401)
+7. Guardar EventId en PaymentEventsProcessed
+8. Retornar 200 OK (siempre, salvo firma inválida → 401)
 ```
 
 ## Paso 5: Resultado del pago (buyer)
@@ -166,8 +172,9 @@ El frontend consulta `GET /api/orders/{orderId}` para obtener el estado actual.
 
 | Componente | Estado |
 |---|---|
-| Cart | ❌ No implementado (Fase 6) |
-| Checkout / Order | ❌ No implementado (Fase 7) |
-| Payment / Webhook | ❌ No implementado (Fase 8) |
+| Cart | ❌ No implementado (Fase 6). Diseño redefinido 2026-07-26, ver `domain/carts.md` |
+| Checkout / Order | ❌ No implementado (Fase 7). Diseño redefinido 2026-07-26, ver `domain/orders.md` |
+| Payment / Webhook | ❌ No implementado (Fase 8). Diseño redefinido 2026-07-26, ver `domain/payments.md` |
 | Productos (catálogo público) | ✅ Implementado |
-| Store info | ⚠️ Skeleton (datos hardcodeados) |
+| Store info | ✅ Implementado (`GET/PUT /api/store` reales, ya no hardcodeado) |
+| Tenant / Onboarding / Usuarios | ✅ Implementado (Fase 4 completa) |

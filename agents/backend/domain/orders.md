@@ -1,6 +1,8 @@
 # Domain — Orders
 
 > Entidades `Order` + `OrderItem`: pedido generado desde checkout. Multi-tenant.
+> Redefinido 2026-07-26: agrega el mecanismo real de escritura atomica (`ICheckoutWriter`) y el
+> orden de llamada al provider de pago, ninguno de los dos existia cuando este doc se escribio.
 
 ## Order — Propiedades
 
@@ -63,19 +65,68 @@
 
 ## Factory method (diseño esperado)
 
+`OrderNumber` **no** se conoce al crear el `Order` en memoria — se genera atomicamente recien al
+persistir (ver "Escritura atomica" abajo). Por eso el factory no lo recibe, y existe un metodo
+separado para asignarlo despues:
+
 ```csharp
 Order.Create(
     tenantId: Guid,
     storeId: Guid,
-    orderNumber: int,          // generado por TenantCounters
     buyerEmail: string,
     buyerName: string,
+    shippingAddress: string?,
     cartToken: string,
-    items: IEnumerable<OrderItemData>,  // snapshot del carrito
+    items: IEnumerable<OrderItemData>,  // snapshot del carrito, ya con UnitPrice actual de Product
     currencyCode: string,
     createdAtUtc: DateTime
-) → Order (Status = PendingPayment)
+) → Order (Status = PendingPayment, OrderNumber = 0/no asignado)
+
+order.AssignOrderNumber(int orderNumber)  // llamado UNA vez, por ICheckoutWriter
 ```
+
+## Escritura atomica (`ICheckoutWriter`)
+
+Checkout escribe a traves de **cuatro** cosas a la vez: `Order`, sus `OrderItem`s, el `Payment`
+inicial, y el incremento de `TenantCounters` — el mismo tipo de operacion que ya resolvimos para el
+onboarding de tenants (`ITenantOnboardingWriter`, ver `GOVERNANCE.md`). Se define un writer angosto
+equivalente:
+
+```csharp
+public interface ICheckoutWriter
+{
+  // Devuelve el OrderNumber generado atomicamente. Asigna order.AssignOrderNumber(...) internamente
+  // antes de persistir.
+  Task<int> CreateAsync(Order order, IReadOnlyList<OrderItem> items, Payment payment, CancellationToken ct);
+}
+```
+
+A diferencia de `EfTenantOnboardingWriter` (que solo hace `Add` + un `SaveChangesAsync`), la
+implementacion de este writer mezcla SQL crudo sobre `TenantCounters`
+(`UPDATE ... WITH (UPDLOCK, ROWLOCK) ... OUTPUT INSERTED.CurrentValue`) con entidades trackeadas por
+EF Core — **necesita una transaccion explicita** (`db.Database.BeginTransactionAsync()`), la primera
+vez que hace falta en el proyecto: hasta ahora un solo `SaveChangesAsync` alcanzaba siempre porque
+nunca se combino SQL crudo con `Add()` en la misma operacion.
+
+## Orden de llamada al provider de pago
+
+Mismo principio ya establecido para Keycloak en el onboarding (`CreateTenantCommandHandler`): llamar
+al sistema externo **antes** de escribir localmente, para no dejar huerfanos locales si el externo
+falla.
+
+1. Construir `Order` + `OrderItem`s en memoria (`Id` generado client-side, como ya hace
+   `Product.Create`) — todavia sin `OrderNumber`.
+2. Llamar `IPaymentProviderAdapter.InitiateAsync(order.Id, amount, currency, ...)` usando `order.Id`
+   (`Guid`) como referencia de comercio — **no** `OrderNumber`, que todavia no existe. Esto desacopla
+   al provider del contador atomico.
+3. Construir `Payment(Initiated)` con la respuesta del provider.
+4. Recien ahi, `ICheckoutWriter.CreateAsync(...)` — escritura local atomica que genera `OrderNumber`
+   y persiste `Order` + `OrderItem`s + `Payment` juntos.
+
+**Trade-off aceptado** (igual que en onboarding, documentado explicitamente, no un descuido): si el
+paso 4 falla despues de que el provider ya inicio el pago en el paso 2, queda un huerfano del lado
+del provider, no en nuestra DB. No se intenta resolver con un saga en este alcance — el huerfano en
+el provider es recuperable manualmente (soporte/ops), un huerfano local silencioso no lo es.
 
 ## Índices DB
 
@@ -96,4 +147,5 @@ Order.Create(
 
 ## Estado de implementación
 
-❌ **No implementado.** Planificado en Fase 7 del backlog.
+❌ **No implementado.** Planificado en Fase 7 del backlog. Diseño redefinido 2026-07-26 (ver nota al
+inicio del doc) — listo para implementar, no requiere otra pasada de diseño.

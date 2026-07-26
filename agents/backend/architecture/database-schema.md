@@ -176,9 +176,31 @@ WHERE TenantId = @tenantId AND CounterType = 'OrderNumber';
 |---|---|---|---|
 | `Id` | `uniqueidentifier` | No | PK |
 | `TenantId` | `uniqueidentifier` | No | — |
-| `CartToken` | `nvarchar(100)` | No | UNIQUE por tenant. UUID generado en frontend |
-| `ExpiresAtUtc` | `datetime2` | No | Para limpieza de carritos abandonados |
+| `CartToken` | `nvarchar(100)` | No | UUID generado en frontend |
+| `ExpiresAtUtc` | `datetime2` | No | Para limpieza de carritos abandonados (F6-04) |
 | + columnas AppEntity | | | — |
+
+### Índices de Carts
+
+| Índice | Tipo |
+|---|---|
+| `(TenantId, CartToken)` | UNIQUE — no `CartToken` solo (ver `domain/carts.md`) |
+
+## Tabla: CartItems
+
+| Columna | Tipo | Nullable | Notas |
+|---|---|---|---|
+| `Id` | `uniqueidentifier` | No | PK |
+| `CartId` | `uniqueidentifier` | No | FK a Carts |
+| `ProductId` | `uniqueidentifier` | No | FK a Products |
+| `Quantity` | `int` | No | CHECK >= 1 |
+| `CreatedAtUtc` / `UpdatedAtUtc` | `datetime2` | No/Sí | Sin resto de columnas AppEntity — se resuelve via `CartId`, igual que `OrderItem` via `OrderId` |
+
+### Índices de CartItems
+
+| Índice | Tipo |
+|---|---|
+| `(CartId, ProductId)` | UNIQUE — un producto, una fila (acumula cantidad, no duplica) |
 
 ## Convenciones EF Core
 

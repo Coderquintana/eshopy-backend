@@ -52,30 +52,32 @@ _(vacio)_
 | F5-03 | Auditoria de cambios (precio/estado) | AuditLog en tabla DB |
 | F5-04 | ProductImages (metadata imagenes) | Entidad + endpoint de imagenes |
 
-### Fase 6 - Carrito
+### Fase 6 - Carrito — diseño redefinido 2026-07-26, ver `domain/carts.md`
 | # | Tarea | Descripcion |
 |---|---|---|
-| F6-01 | CartEntity + CartItemEntity | Persistencia server-side con CartToken |
-| F6-02 | Commands: Add/Update/Remove CartItem | CRUD de items del carrito |
-| F6-03 | Query: GetCart por CartToken | Obtener carrito con items |
-| F6-04 | Job limpieza carritos expirados | Background job periodico |
+| F6-01 | `Cart` + `CartItem` (dominio) | Sin `UnitPrice` en `CartItem` — el precio se lee en vivo, el snapshot es recien en Order |
+| F6-02 | Commands: Add/Update/Remove CartItem | `PUT/DELETE /api/cart/items/{productId}` — clave por ProductId, no por CartItem.Id interno |
+| F6-03 | Query: GetCart por CartToken | `GET /api/cart`, header `X-Cart-Token` |
+| F6-04 | Job limpieza carritos expirados | Background job periodico — no bloqueante para F6-01..03 |
 
-### Fase 7 - Pedidos
+### Fase 7 - Pedidos — diseño redefinido 2026-07-26, ver `domain/orders.md`
 | # | Tarea | Descripcion |
 |---|---|---|
-| F7-01 | OrderEntity + OrderItemEntity | Snapshot de precio en item |
-| F7-02 | Checkout con Result<T> | Caso de uso completo |
-| F7-03 | OrderNumber con TenantCounters | Secuencial por tenant, UPDLOCK/ROWLOCK |
+| F7-01 | OrderEntity + OrderItemEntity | Snapshot de precio en item. `Order.OrderNumber` se asigna despues de crear (`AssignOrderNumber`), no en el factory |
+| F7-02 | `ICheckoutWriter` | Writer angosto multi-agregado (Order+OrderItems+Payment+TenantCounters) con transaccion explicita — primera vez que hace falta `BeginTransactionAsync` en el proyecto |
+| F7-03 | OrderNumber con TenantCounters | Secuencial por tenant, UPDLOCK/ROWLOCK, generado DENTRO de `ICheckoutWriter` |
 | F7-04 | Transiciones OrderStatus | Controladas segun tabla de dominio |
+| F7-05 | Orden de llamada al provider de pago | `adapter.InitiateAsync` ANTES de la escritura local (mismo principio que Keycloak en onboarding), usando `order.Id` como referencia — no `OrderNumber` |
 
-### Fase 8 - Pagos
+### Fase 8 - Pagos — diseño redefinido 2026-07-26, ver `domain/payments.md`
 | # | Tarea | Descripcion |
 |---|---|---|
 | F8-01 | PaymentEntity + IPaymentProviderAdapter | Contrato de adaptador |
-| F8-02 | BancardAdapter | Integracion con Bancard API |
-| F8-03 | PagoParAdapter | Integracion con PagoPar API |
-| F8-04 | Webhook endpoint idempotente | `POST /api/payments/webhooks/{provider}` |
-| F8-05 | Validacion de firma/secret webhook | Por provider |
+| F8-02 | `FakePaymentProviderAdapter` | Dev-only, siempre exitoso — permite probar el flujo completo sin credenciales reales. Se implementa junto con F8-01, antes que los adapters reales |
+| F8-03 | BancardAdapter | Integracion con Bancard API — bloqueado hasta tener la documentacion real del provider |
+| F8-04 | PagoParAdapter | Integracion con PagoPar API — idem |
+| F8-05 | Webhook endpoint idempotente | `POST /api/payments/webhooks/{provider}`. Resuelve el tenant por `(Provider, ProviderPaymentId)` sin subdominio — requiere `TenantContext.Set(tenantId, subdomain = null)` |
+| F8-06 | Validacion de firma/secret webhook | Por provider |
 
 ### Fase 9 - Observabilidad
 | # | Tarea | Descripcion |
