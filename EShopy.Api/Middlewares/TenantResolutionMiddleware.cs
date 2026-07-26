@@ -2,17 +2,19 @@ using EShopy.Application.Common.Context;
 using EShopy.Application.Common.Tenants;
 using EShopy.Domain.Common.Errors;
 using EShopy.Domain.Common.Exceptions;
+using EShopy.Domain.Tenants;
 
 namespace EShopy.Api.Middlewares;
 
 public sealed class TenantResolutionMiddleware(RequestDelegate next)
 {
-  // Rutas que no requieren tenant (sin subdominio comercial)
+  // Rutas que no requieren tenant (sin subdominio comercial, u operaciones a nivel plataforma)
   private static readonly string[] ExcludedPrefixes =
   [
     "/health",
     "/swagger",
     "/api/onboarding/tenants",
+    "/api/admin/tenants",
     "/api/payments/webhooks"
   ];
 
@@ -32,11 +34,19 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next)
     if (string.IsNullOrWhiteSpace(subdomain))
       throw new DomainException(ErrorCodes.TenantNotFound, "Falta el subdominio del tenant.");
 
-    var tenantId = await tenantResolver.ResolveTenantIdAsync(subdomain, ctx.RequestAborted);
-    if (tenantId is null)
+    var resolution = await tenantResolver.ResolveAsync(subdomain, ctx.RequestAborted);
+    if (resolution is null)
       throw new DomainException(ErrorCodes.TenantNotFound, $"Tenant no encontrado para el subdominio '{subdomain}'.");
 
-    tenantContext.Set(tenantId.Value, subdomain);
+    switch (resolution.Status)
+    {
+      case TenantStatus.Suspended:
+        throw new DomainException(ErrorCodes.TenantSuspended, "El tenant esta suspendido por falta de pago.");
+      case TenantStatus.Cancelled:
+        throw new DomainException(ErrorCodes.TenantCancelled, "El tenant fue cancelado.");
+    }
+
+    tenantContext.Set(resolution.TenantId, subdomain);
 
     await next(ctx);
   }

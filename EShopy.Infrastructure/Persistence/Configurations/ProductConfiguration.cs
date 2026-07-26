@@ -1,4 +1,5 @@
 using EShopy.Domain.Products;
+using EShopy.Domain.Tenants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -95,5 +96,18 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
 
     builder.HasIndex(p => new { p.TenantId, p.Name })
       .HasDatabaseName("IX_Products_TenantId_Name");
+
+    // FKs agregadas junto con los modulos Tenants/Store (antes eran Guid sueltos, sin constraint).
+    builder.HasOne<Tenant>()
+      .WithMany()
+      .HasForeignKey(p => p.TenantId)
+      .HasConstraintName("FK_Products_Tenants_TenantId")
+      .OnDelete(DeleteBehavior.Restrict);
+
+    builder.HasOne<Store>()
+      .WithMany()
+      .HasForeignKey(p => p.StoreId)
+      .HasConstraintName("FK_Products_Stores_StoreId")
+      .OnDelete(DeleteBehavior.Restrict);
   }
 }

@@ -1,4 +1,6 @@
 using System.Text;
+using EShopy.Application.Common.Stores;
+using EShopy.Application.Common.Tenants;
 using EShopy.Application.Products;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
@@ -54,6 +56,12 @@ public sealed class SecurityWebApplicationFactory : WebApplicationFactory<Progra
 
       services.RemoveAll<IProductRepository>();
       services.AddSingleton<IProductRepository, InMemoryProductRepository>();
+
+      services.RemoveAll<ITenantResolver>();
+      services.AddSingleton<ITenantResolver, FakeTenantResolver>();
+
+      services.RemoveAll<IStoreService>();
+      services.AddSingleton<IStoreService, FakeStoreService>();
     });
   }
 }
