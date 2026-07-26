@@ -1,11 +1,14 @@
 using System.Text;
 using EShopy.Application.Carts;
 using EShopy.Application.Common.Identity;
+using EShopy.Application.Common.Payments;
 using EShopy.Application.Common.Stores;
 using EShopy.Application.Common.Tenants;
+using EShopy.Application.Orders;
 using EShopy.Application.Products;
 using EShopy.Application.Subscriptions;
 using EShopy.Application.Tenants;
+using EShopy.Infrastructure.Payments;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -92,6 +95,17 @@ public sealed class SecurityWebApplicationFactory : WebApplicationFactory<Progra
 
       services.RemoveAll<ICartRepository>();
       services.AddSingleton<ICartRepository, InMemoryCartRepository>();
+
+      services.AddSingleton<InMemoryOrdersState>();
+
+      services.RemoveAll<IOrderRepository>();
+      services.AddSingleton<IOrderRepository, InMemoryOrderRepository>();
+
+      services.RemoveAll<ICheckoutWriter>();
+      services.AddSingleton<ICheckoutWriter, InMemoryCheckoutWriter>();
+
+      services.RemoveAll<IPaymentProviderAdapter>();
+      services.AddSingleton<IPaymentProviderAdapter, FakePaymentProviderAdapter>();
     });
   }
 }

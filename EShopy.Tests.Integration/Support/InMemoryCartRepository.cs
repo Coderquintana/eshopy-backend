@@ -31,4 +31,13 @@ internal sealed class InMemoryCartRepository : ICartRepository
   }
 
   public Task SaveChangesAsync(CancellationToken ct) => Task.CompletedTask;
+
+  public Task DeleteAsync(Cart cart, CancellationToken ct)
+  {
+    lock (_sync)
+    {
+      _carts.Remove((cart.TenantId, cart.CartToken));
+    }
+    return Task.CompletedTask;
+  }
 }
