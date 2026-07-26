@@ -29,18 +29,24 @@ public sealed class EShopyDbContext(
     modelBuilder.ApplyConfiguration(new SubscriptionConfiguration());
 
     // Global Query Filter de multi-tenancy.
-    // Si TenantId no está disponible (e.g. migrations en design-time), el filtro es transparente.
+    // Si TenantId no está disponible (e.g. migrations en design-time, o rutas SUPERADMIN excluidas
+    // de TenantResolutionMiddleware), el filtro es transparente.
+    // Comparar el Guid? directamente (sin ".Value") es deliberado: EF Core evalua los parametros de
+    // un query filter de forma ansiosa al armar el SQL, incluso en la rama del "||" que la logica
+    // nunca deberia alcanzar — "!x.HasValue || y == x.Value" tira InvalidOperationException
+    // ("Nullable object must have a value") apenas TenantId es null, porque ".Value" se evalua igual.
+    // "y == x" (Guid == Guid?) no llama a ".Value" nunca, así que es seguro con TenantId null.
     // Tenant queda afuera: es la entidad global que resuelve el TenantId, no tiene uno propio.
     modelBuilder.Entity<Product>()
-      .HasQueryFilter(p => !tenantContext.TenantId.HasValue || p.TenantId == tenantContext.TenantId.Value);
+      .HasQueryFilter(p => tenantContext.TenantId == null || p.TenantId == tenantContext.TenantId);
 
     modelBuilder.Entity<Store>()
-      .HasQueryFilter(s => !tenantContext.TenantId.HasValue || s.TenantId == tenantContext.TenantId.Value);
+      .HasQueryFilter(s => tenantContext.TenantId == null || s.TenantId == tenantContext.TenantId);
 
     modelBuilder.Entity<TenantUser>()
-      .HasQueryFilter(u => !tenantContext.TenantId.HasValue || u.TenantId == tenantContext.TenantId.Value);
+      .HasQueryFilter(u => tenantContext.TenantId == null || u.TenantId == tenantContext.TenantId);
 
     modelBuilder.Entity<Subscription>()
-      .HasQueryFilter(s => !tenantContext.TenantId.HasValue || s.TenantId == tenantContext.TenantId.Value);
+      .HasQueryFilter(s => tenantContext.TenantId == null || s.TenantId == tenantContext.TenantId);
   }
 }

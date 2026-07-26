@@ -2,6 +2,11 @@
 
 > Reauditado 2026-07-26 contra HEAD. Sesion larga: revision de arquitectura + modulo Tenants/Store completo + infra Docker Compose.
 > Refleja el codigo real, no la documentacion ideal. Ver [BACKLOG.md](BACKLOG.md) seccion "DEUDA TECNICA / ARQUITECTURA" para gaps de escalabilidad no listados en la tabla de abajo.
+>
+> **Smoke test real (2026-07-26)**: `docker compose up -d` + migraciones + API corriendo, flujo
+> completo probado contra SQL Server y Keycloak reales (no fakes): onboarding → Keycloak crea el
+> Owner → activacion SUPERADMIN → `GET/PUT /api/store` → crear un Product real. Encontro y arreglo
+> 2 bugs que los tests con fakes no podian atrapar — ver C-39/C-40 en BACKLOG.md.
 
 ---
 
