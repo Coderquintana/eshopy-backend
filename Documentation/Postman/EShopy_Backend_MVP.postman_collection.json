@@ -163,6 +163,103 @@
       ]
     },
     {
+      "name": "Onboarding",
+      "item": [
+        {
+          "name": "Create Tenant (Onboarding)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{api_root}}/onboarding/tenants",
+              "host": [
+                "{{api_root}}"
+              ],
+              "path": [
+                "onboarding",
+                "tenants"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subdomain\": \"mitienda\",\n  \"businessName\": \"Mi Tienda SRL\",\n  \"ownerEmail\": \"owner@mitienda.com\",\n  \"ownerName\": \"Juan Perez\",\n  \"plan\": \"basic\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.tenantId) {",
+                  "  pm.environment.set('tenantId', json.tenantId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Tenants (Admin, SUPERADMIN)",
+      "item": [
+        {
+          "name": "Get Tenant",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{api_root}}/admin/tenants/{{tenantId}}",
+              "host": [
+                "{{api_root}}"
+              ],
+              "path": [
+                "admin",
+                "tenants",
+                "{{tenantId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Activate Tenant",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{api_root}}/admin/tenants/{{tenantId}}/activate",
+              "host": [
+                "{{api_root}}"
+              ],
+              "path": [
+                "admin",
+                "tenants",
+                "{{tenantId}}",
+                "activate"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Catalog (Admin)",
       "item": [
         {
@@ -293,6 +390,40 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"Active\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Store (Admin)",
+      "item": [
+        {
+          "name": "Update Store Config",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{api_root}}/store",
+              "host": [
+                "{{api_root}}"
+              ],
+              "path": [
+                "store"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mi Tienda\",\n  \"timezone\": \"America/Asuncion\",\n  \"primaryColor\": \"#007bff\",\n  \"logoUrl\": \"https://cdn.example.com/logo.png\",\n  \"backgroundColor\": \"#FFFFFF\",\n  \"description\": \"Una tienda de ejemplo\"\n}"
             }
           }
         }
