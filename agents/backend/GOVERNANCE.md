@@ -61,7 +61,7 @@
 | **Columnas EF Core** | `HasComment()` obligatorio en toda columna mapeada |
 | **Swagger** | `<summary>` obligatorio en todos los controllers y actions |
 | **Postman** | Todo cambio en endpoints debe reflejarse en la colección Postman |
-| **Commits** | `type(scope): resumen corto` — sin commits masivos sin justificación |
+| **Commits** | [Conventional Commits](https://www.conventionalcommits.org/) (`type(scope): summary`). Descripción en **inglés**. Commits chicos y atómicos por funcionalidad — nunca `git add .` de decenas de archivos sin relación. Tipos usados: `feat`, `fix`, `refactor`, `docs`, `test`, `chore` |
 
 ---
 
