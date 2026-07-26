@@ -39,6 +39,10 @@ public abstract class BaseApiController : ControllerBase
       ErrorCodes.ProductInvalidState => Conflict(error),
       ErrorCodes.ProductNotAvailable => Conflict(error),
       ErrorCodes.ConcurrencyConflict => Conflict(error),
+      ErrorCodes.TenantInvalidState => Conflict(error),
+      ErrorCodes.TenantSuspended => StatusCode(StatusCodes.Status403Forbidden, error),
+      ErrorCodes.TenantCancelled => StatusCode(StatusCodes.Status403Forbidden, error),
+      ErrorCodes.ExternalServiceError => StatusCode(StatusCodes.Status502BadGateway, error),
       _ => StatusCode(StatusCodes.Status500InternalServerError, error)
     };
   }

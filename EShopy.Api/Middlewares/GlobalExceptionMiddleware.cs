@@ -76,6 +76,10 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Glob
       ErrorCodes.Conflict => HttpStatusCode.Conflict,
       ErrorCodes.ProductInvalidState => HttpStatusCode.Conflict,
       ErrorCodes.ProductNotAvailable => HttpStatusCode.Conflict,
+      ErrorCodes.TenantInvalidState => HttpStatusCode.Conflict,
+      ErrorCodes.TenantSuspended => HttpStatusCode.Forbidden,
+      ErrorCodes.TenantCancelled => HttpStatusCode.Forbidden,
+      ErrorCodes.ExternalServiceError => HttpStatusCode.BadGateway,
       _ => HttpStatusCode.InternalServerError
     };
 }

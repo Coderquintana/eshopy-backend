@@ -14,4 +14,12 @@ public static class ErrorCodes
   // Catalog / Products
   public const string ProductNotAvailable = "PRODUCT_NOT_AVAILABLE";
   public const string ProductInvalidState = "PRODUCT_INVALID_STATE";
+
+  // Tenants / Subscriptions
+  public const string TenantInvalidState = "TENANT_INVALID_STATE";
+  public const string TenantSuspended = "TENANT_SUSPENDED";
+  public const string TenantCancelled = "TENANT_CANCELLED";
+
+  // Infraestructura / integraciones externas
+  public const string ExternalServiceError = "EXTERNAL_SERVICE_ERROR";
 }
