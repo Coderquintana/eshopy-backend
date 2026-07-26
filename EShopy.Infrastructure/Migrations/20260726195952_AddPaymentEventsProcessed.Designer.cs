@@ -4,6 +4,7 @@ using EShopy.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EShopy.Infrastructure.Migrations
 {
     [DbContext(typeof(EShopyDbContext))]
-    partial class EShopyDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260726195952_AddPaymentEventsProcessed")]
+    partial class AddPaymentEventsProcessed
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

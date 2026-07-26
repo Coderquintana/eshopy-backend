@@ -28,6 +28,9 @@ public sealed class EShopyDbContext(
   public DbSet<Payment> Payments => Set<Payment>();
   public DbSet<TenantCounter> TenantCounters => Set<TenantCounter>();
 
+  /// <summary>Global: ledger de idempotencia de webhooks, no tiene TenantId (ver PaymentEventProcessed).</summary>
+  public DbSet<PaymentEventProcessed> PaymentEventsProcessed => Set<PaymentEventProcessed>();
+
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
     modelBuilder.ApplyConfiguration(new ProductConfiguration());
@@ -41,6 +44,7 @@ public sealed class EShopyDbContext(
     modelBuilder.ApplyConfiguration(new OrderItemConfiguration());
     modelBuilder.ApplyConfiguration(new PaymentConfiguration());
     modelBuilder.ApplyConfiguration(new TenantCounterConfiguration());
+    modelBuilder.ApplyConfiguration(new PaymentEventProcessedConfiguration());
 
     // Global Query Filter de multi-tenancy.
     // Si TenantId no está disponible (e.g. migrations en design-time, o rutas SUPERADMIN excluidas

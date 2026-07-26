@@ -8,6 +8,8 @@ using EShopy.Application.Common.Tenants;
 using EShopy.Application.Orders;
 using EShopy.Application.Orders.Commands;
 using EShopy.Application.Orders.Queries;
+using EShopy.Application.Payments;
+using EShopy.Application.Payments.Commands;
 using EShopy.Application.Products;
 using EShopy.Application.Products.Commands;
 using EShopy.Application.Products.Queries;
@@ -66,6 +68,7 @@ public static class DependencyInjection
     services.AddScoped<IOrderRepository, EfOrderRepository>();
     services.AddScoped<ICheckoutWriter, EfCheckoutWriter>();
     services.AddScoped<IPaymentProviderAdapter, FakePaymentProviderAdapter>();
+    services.AddScoped<IPaymentWebhookWriter, EfPaymentWebhookWriter>();
 
     // Handlers — Tenants / Store
     services.AddScoped<CreateTenantCommandHandler>();
@@ -98,6 +101,9 @@ public static class DependencyInjection
     services.AddScoped<ChangeOrderStatusCommandHandler>();
     services.AddScoped<GetOrderByIdQueryHandler>();
     services.AddScoped<GetOrdersQueryHandler>();
+
+    // Handlers — Payments
+    services.AddScoped<ProcessPaymentWebhookCommandHandler>();
 
     return services;
   }
