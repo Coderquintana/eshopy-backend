@@ -23,10 +23,10 @@ Todas las tablas multi-tenant incluyen estas columnas:
 
 | Tabla | Global/MT | Estado |
 |---|---|---|
-| `Tenants` | Global | ❌ Pendiente |
-| `Stores` | Multi-tenant | ❌ Pendiente |
-| `Subscriptions` | Multi-tenant | ❌ Pendiente |
-| `TenantUsers` | Multi-tenant | ❌ Pendiente |
+| `Tenants` | Global | ✅ Migración creada (`AddTenantsStoresSubscriptions`) |
+| `Stores` | Multi-tenant | ✅ Migración creada |
+| `Subscriptions` | Multi-tenant | ✅ Migración creada |
+| `TenantUsers` | Multi-tenant | ✅ Migración creada |
 | `Products` | Multi-tenant | ✅ Migración creada |
 | `ProductImages` | Multi-tenant | ❌ Pendiente |
 | `Carts` | Multi-tenant | ❌ Pendiente |
@@ -43,8 +43,8 @@ Todas las tablas multi-tenant incluyen estas columnas:
 | Columna | Tipo | Nullable | Constraint |
 |---|---|---|---|
 | `Id` | `uniqueidentifier` | No | PK |
-| `TenantId` | `uniqueidentifier` | No | FK (futuro), Index |
-| `StoreId` | `uniqueidentifier` | No | FK a Stores (**PENDIENTE** agregar) |
+| `TenantId` | `uniqueidentifier` | No | FK a Tenants (`FK_Products_Tenants_TenantId`) |
+| `StoreId` | `uniqueidentifier` | No | FK a Stores (`FK_Products_Stores_StoreId`) |
 | `Slug` | `nvarchar(200)` | No | — |
 | `Sku` | `nvarchar(64)` | Sí | — |
 | `Name` | `nvarchar(300)` | No | — |
@@ -63,6 +63,69 @@ Todas las tablas multi-tenant incluyen estas columnas:
 | `UQ_Products_TenantId_Sku` | `(TenantId, Sku)` WHERE Sku IS NOT NULL | UNIQUE filtrado |
 | `IX_Products_TenantId_Status` | `(TenantId, Status)` | IX |
 | `IX_Products_TenantId_Name` | `(TenantId, Name)` | IX |
+
+## Tabla: Tenants (implementada)
+
+Entidad global: no lleva `TenantId` ni las columnas de `AppEntity` (no participa del Global Query Filter).
+
+| Columna | Tipo | Nullable | Constraint |
+|---|---|---|---|
+| `Id` | `uniqueidentifier` | No | PK |
+| `Subdomain` | `nvarchar(50)` | No | UNIQUE global |
+| `BusinessName` | `nvarchar(200)` | No | — |
+| `Status` | `tinyint` | No | 0=PendingPayment, 1=Active, 2=Suspended, 3=Cancelled |
+| `Plan` | `tinyint` | No | 0=Basic, 1=Gold, 2=Diamond |
+| `CreatedAtUtc` | `datetime2` | No | — |
+| `UpdatedAtUtc` | `datetime2` | Sí | — |
+| `ActivatedAtUtc` | `datetime2` | Sí | Fecha de la primera activación |
+
+Índice: `UQ_Tenants_Subdomain` (`Subdomain`, UNIQUE).
+
+## Tabla: Stores (implementada)
+
+| Columna | Tipo | Nullable | Constraint |
+|---|---|---|---|
+| `Id` | `uniqueidentifier` | No | PK |
+| `Name` | `nvarchar(200)` | No | — |
+| `CurrencyCode` | `char(3)` | No | Inmutable tras creación |
+| `Timezone` | `nvarchar(100)` | No | Default `America/Asuncion` |
+| `PrimaryColor` / `BackgroundColor` | `nvarchar(7)` | Sí | Hex color |
+| `LogoUrl` | `nvarchar(500)` | Sí | — |
+| `Description` | `nvarchar(1000)` | Sí | — |
+| + columnas AppEntity | | | Ver tabla AppEntity arriba |
+
+Índice: `UQ_Stores_TenantId` (`TenantId`, UNIQUE — 1:1 con Tenant en MVP).
+
+## Tabla: TenantUsers (implementada)
+
+| Columna | Tipo | Nullable | Constraint |
+|---|---|---|---|
+| `Id` | `uniqueidentifier` | No | PK |
+| `KeycloakUserId` | `nvarchar(100)` | No | — |
+| `Email` | `nvarchar(200)` | No | UNIQUE por tenant |
+| `Name` | `nvarchar(200)` | No | — |
+| `Role` | `tinyint` | No | 0=Owner, 1=Admin, 2=Staff |
+| `IsActive` | `bit` | No | — |
+| + columnas AppEntity | | | Ver tabla AppEntity arriba |
+
+Índice: `UQ_TenantUsers_TenantId_Email` (`TenantId`, `Email`, UNIQUE).
+
+## Tabla: Subscriptions (implementada)
+
+| Columna | Tipo | Nullable | Constraint |
+|---|---|---|---|
+| `Id` | `uniqueidentifier` | No | PK |
+| `Plan` | `tinyint` | No | 0=Basic, 1=Gold, 2=Diamond |
+| `Status` | `tinyint` | No | 0=PendingActivation, 1=Active, 2=PastDue, 3=Suspended, 4=Cancelled |
+| `BillingCycleStart` / `BillingCycleEnd` | `datetime2` | No | Iguales mientras `Status = PendingActivation` (aun no hay ciclo real) |
+| `PriceAmount` | `decimal(18,2)` | No | CHECK >= 0. Hoy siempre 0 — precios reales TBD, ver `domain/subscriptions.md` |
+| `CurrencyCode` | `char(3)` | No | — |
+| `ExternalSubscriptionId` | `nvarchar(100)` | Sí | Id en billing externo (Fase 8) |
+| `CancelledAtUtc` | `datetime2` | Sí | — |
+| + columnas AppEntity | | | Ver tabla AppEntity arriba |
+
+Índice: `UQ_Subscriptions_TenantId_NonCancelled` (`TenantId`, UNIQUE filtrado `WHERE [Status] <> 4`) —
+enforced a nivel DB: no puede haber mas de una suscripcion no cancelada por tenant.
 
 ## Tabla: Orders (diseño)
 
@@ -133,10 +196,9 @@ builder.HasIndex(p => new { p.TenantId, p.Slug })
 
 ## Base de datos de desarrollo
 
-- Servidor: `localhost\SQLEXPRESS`
+- Contenedor SQL Server 2022 via `docker-compose.yml` (ver `docs/keycloak-setup.md` §0), `localhost:1433`
 - Base de datos: `EShopy.Dev`
-- Auth: Windows (Trusted_Connection)
-- Si falla conexión: usar `lpc:localhost\SQLEXPRESS` para evitar error de SQL Browser
+- Auth: SQL (`sa` / password en `MSSQL_SA_PASSWORD`, ver `docker-compose.yml`)
 
 ## Migraciones
 

@@ -2,6 +2,12 @@
 
 > Flujo de creación y activación de un nuevo tenant (comercio) en eShopy.
 
+> **Estado real (2026-07-26)**: el Paso 1 (creacion) y la activacion estan implementados y
+> funcionando. Los Pasos 2-3 (pago via Bancard/PagoPar y su webhook) todavia no existen — Fase 8.
+> Mientras tanto, la activacion es manual via `POST /api/admin/tenants/{id}/activate` (SUPERADMIN),
+> una herramienta de soporte/ops que sigue siendo util incluso despues de que el webhook exista
+> (casos de excepcion, regularizaciones manuales, etc.). Ver `domain/subscriptions.md`.
+
 ## Actores
 
 | Actor | Rol |
@@ -63,21 +69,23 @@ Prospect                Backend                 Keycloak         Payment Provide
 - `ownerEmail`: formato válido
 - `plan`: valor en [`basic`, `gold`, `diamond`]
 
-**Acciones en backend:**
+**Acciones en backend (implementado):**
 1. Verificar que `subdomain` no existe en Tenants
-2. Crear `Tenant` (Status = `PendingPayment`)
-3. Crear `Subscription` (Status = `PendingActivation`, plan, precio actual)
-4. Crear `Store` con valores default (Name = businessName, CurrencyCode = "PYG", Timezone = "America/Asuncion")
-5. Crear usuario en Keycloak (realm `eshopy`, rol `TENANT_OWNER`)
-6. Crear `TenantUser` (KeycloakUserId, Email, Role = TENANT_OWNER)
-7. Generar URL de pago de suscripción inicial
-8. Retornar `{ tenantId, paymentUrl }`
+2. Crear usuario en Keycloak (realm `eshopy`, rol `TENANT_OWNER`) **antes** de escribir en la base
+   local — si esto falla no queda un Tenant huerfano sin usuario
+3. Crear `Tenant` (Status = `PendingPayment`), `Store` con defaults, `TenantUser` (Owner) y
+   `Subscription` (Status = `PendingActivation`) en una sola transaccion
+4. Retornar `{ tenantId, subdomain, status }`
 
-**Response 201:**
+**Pendiente (Fase 8):** generar URL de pago real y devolverla en la respuesta. No se inventa un
+valor de `paymentUrl` mientras no exista un provider real conectado.
+
+**Response 201 (real):**
 ```json
 {
   "tenantId": "aaaaaaaa-...",
-  "paymentUrl": "https://pagos.bancard.com.py/..."
+  "subdomain": "mitienda",
+  "status": "PendingPayment"
 }
 ```
 
@@ -135,6 +143,13 @@ Cada mes, al vencer BillingCycleEnd:
 
 ## Estado de implementación
 
-❌ **No implementado.** Planificado en Fase 4 del backlog.
+| Paso | Estado |
+|---|---|
+| Paso 1 — Solicitud de onboarding (`POST /api/onboarding/tenants`) | ✅ Implementado |
+| Paso 2 — Pago de suscripción inicial (redirect a provider) | ❌ No implementado (Fase 8) |
+| Paso 3 — Activación por webhook (`POST /api/payments/webhooks/{provider}`) | ❌ No implementado (Fase 8) |
+| Activación manual SUPERADMIN (`POST /api/admin/tenants/{id}/activate`) | ✅ Implementado — trigger disponible hoy |
+| Paso 4 — Primera sesión del Owner (login Keycloak, configurar Store) | ✅ Desbloqueado (`PUT /api/store` implementado). El flujo de login SPA es responsabilidad del frontend |
+| Renovación mensual / ciclo de suscripción | ❌ No implementado (Fase 8) |
 
 Ver `domain/tenants.md` y `domain/subscriptions.md` para el detalle de entidades.

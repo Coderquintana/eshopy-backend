@@ -1,6 +1,6 @@
 # CURRENT_STATE - Estado actual del codigo
 
-> Reauditado 2026-07-26 contra HEAD (d531917). Sin commits nuevos desde 2026-02-20 (pausa de ~5 meses).
+> Reauditado 2026-07-26 contra HEAD. Sesion larga: revision de arquitectura + modulo Tenants/Store completo + infra Docker Compose.
 > Refleja el codigo real, no la documentacion ideal. Ver [BACKLOG.md](BACKLOG.md) seccion "DEUDA TECNICA / ARQUITECTURA" para gaps de escalabilidad no listados en la tabla de abajo.
 
 ---
@@ -9,15 +9,15 @@
 
 | Modulo | Estado | Notas |
 |---|---|---|
-| **Core / Infraestructura base** | ? Implementado | Middleware, BaseApiController, ErrorResponse, Result<T>, Global Query Filter, mapeo de `DbUpdateConcurrencyException`/violacion de indice unico a 409. Sin capa de Unit of Work explicita a proposito (ver nota D-01 en BACKLOG.md) |
+| **Core / Infraestructura base** | ? Implementado | Middleware, BaseApiController, ErrorResponse, Result<T>, Global Query Filter, mapeo de `DbUpdateConcurrencyException`/violacion de indice unico a 409. Sin capa de Unit of Work generica a proposito (ver nota D-01 en BACKLOG.md); dos writers angostos (`ITenantOnboardingWriter`/`ITenantActivationWriter`) para los flujos que si escriben varios agregados en una transaccion |
 | **Auth (Keycloak/JWT)** | ? Completo (Fase 2) | OIDC + RBAC por claim `permissions` + CORS por ambiente + headers de seguridad + UserContextAccessor |
-| **Products (Catalog)** | ? Completo (MVP) | CQRS + Result<T> + SQL pagination + StoreId + transiciones validadas. `ProductService` ya no existe (reemplazado por Commands/Queries). RowVersion configurado pero no cableado end-to-end (ver D-03) |
-| **Store (abstraccion)** | ?? Placeholder | IStoreService + InMemoryStoreService retorna PYG fijo |
-| **Tenants** | ? Pendiente | Solo InMemoryTenantResolver placeholder (2 tenants hardcodeados). Resolucion de subdominio ahora en `SubdomainResolver` (puro, testeado) |
+| **Products (Catalog)** | ? Completo (MVP) | CQRS + Result<T> + SQL pagination + StoreId + transiciones validadas. `ProductService` ya no existe (reemplazado por Commands/Queries). FK reales a Tenants/Stores. RowVersion configurado pero no cableado end-to-end (ver D-03) |
+| **Store** | ? Implementado | `EfStoreService`/`IStoreRepository` reales (reemplazan `InMemoryStoreService`). `GET/PUT /api/store` funcionando. `CurrencyCode` inmutable tras creacion |
+| **Tenants** | ? Implementado (Fase 4) | `Tenant`/`TenantUser` reales, maquina de estados completa. `EfTenantResolver` reemplaza el diccionario en memoria (cache ~60s por subdominio). Onboarding (`POST /api/onboarding/tenants`) crea Tenant+Store+Owner(Keycloak)+Subscription atomicamente. Activacion manual SUPERADMIN implementada; webhook de pago sigue en Fase 8. Invitar Admin/Staff adicionales (`/api/admin/users`) queda pendiente (F4-05) |
+| **Subscriptions** | ?? Minimo (Fase 4) | Entidad y maquina de estados completas, se crea en el onboarding. Sin integracion de pago real: `PriceAmount` siempre 0 (precios TBD), sin renovacion automatica ni webhook — todo eso es Fase 8 |
 | **Carts** | ? No iniciado | Fase 6 |
 | **Orders** | ? No iniciado | Fase 7 |
 | **Payments** | ? No iniciado | Fase 8 |
-| **Subscriptions** | ? No iniciado | Fase 4 |
 
 ---
 
@@ -66,12 +66,33 @@ Estado: **? Completo**
 
 ---
 
+## Tenants / Store / Subscriptions
+
+- Domain: `EShopy.Domain/Tenants/{Tenant,Store,TenantUser}.cs` (Tenant es global, sin TenantId),
+  `EShopy.Domain/Subscriptions/Subscription.cs`.
+- Application: `EShopy.Application/Tenants/` (repos, `ITenantOnboardingWriter`/`ITenantActivationWriter`,
+  `CreateTenantCommand`, `ActivateTenantCommand`, `UpdateStoreCommand`, `GetStoreQuery`, `GetTenantByIdQuery`),
+  `EShopy.Application/Subscriptions/ISubscriptionRepository.cs`,
+  `EShopy.Application/Common/Identity/IKeycloakUserProvisioner.cs`.
+- API:
+  - `EShopy.Api/Controllers/Public/OnboardingController.cs` (`AllowAnonymous`)
+  - `EShopy.Api/Controllers/Admin/TenantsController.cs` (`TenantsRead`/`TenantsWrite`, SUPERADMIN)
+  - `EShopy.Api/Controllers/Public/StoreController.cs` (GET anonimo, PUT `StoreWrite`)
+- Infraestructura:
+  - `EShopy.Infrastructure/Tenants/` — `EfTenantRepository`, `EfStoreRepository`, `EfTenantResolver`
+    (cache `IMemoryCache` ~60s), `EfTenantOnboardingWriter`, `EfTenantActivationWriter`
+  - `EShopy.Infrastructure/Subscriptions/EfSubscriptionRepository.cs`
+  - `EShopy.Infrastructure/Identity/KeycloakAdminClient.cs` — Keycloak Admin REST API real
+    (client-credentials grant, service account de `eshopy-api`)
+
+---
+
 ## Tests
 
 | Suite | Tests | Estado |
 |---|---|---|
-| `EShopy.Tests.Unit` | 33 tests | ? (incluye 9 nuevos de `SubdomainResolverTests`) |
-| `EShopy.Tests.Integration` | 5 tests | ? Incluye seguridad 401/403/200 |
+| `EShopy.Tests.Unit` | 63 tests | ? (incluye `TenantTests`, `SubscriptionTests`, `TenantValidatorTests`, `SubdomainResolverTests`) |
+| `EShopy.Tests.Integration` | 7 tests | ? Incluye seguridad 401/403/200 y flujo de onboarding end-to-end |
 
 Nuevos tests de seguridad:
 
@@ -80,22 +101,32 @@ Nuevos tests de seguridad:
   - `GetProducts_WithCatalogReadPermission_Returns200`
   - `CreateProduct_WithoutCatalogWritePermission_Returns403`
 
+Flujo de onboarding:
+
+- `EShopy.Tests.Integration/Smoke/OnboardingFlowTests.cs`
+  - `OnboardingFlow_ShouldCreateAndActivateTenant` (create → 201 PendingPayment → activate SUPERADMIN → 200 Active)
+  - `CreateTenant_WithDuplicateSubdomain_ShouldReturn409`
+
 Soporte de tests:
 
 - `EShopy.Tests.Integration/Support/SecurityWebApplicationFactory.cs`
 - `EShopy.Tests.Integration/Support/TestJwtTokenFactory.cs`
 - `EShopy.Tests.Integration/Support/InMemoryProductRepository.cs`
+- `EShopy.Tests.Integration/Support/InMemoryTenantsState.cs` + fakes de Tenants/Store/Subscriptions/Keycloak
+  (mismo patron que `InMemoryProductRepository`, sin DB/Keycloak real)
 
 ---
 
 ## Notas operativas
 
-- DB `EShopy.Dev` validada en `localhost\\SQLEXPRESS`.
+- DB `EShopy.Dev` en el contenedor SQL Server del `docker-compose.yml` (`localhost:1433`). Ver
+  `docs/keycloak-setup.md` §0 para levantar todo el entorno local.
 - Migraciones aplicadas:
   - `20260207035710_InitialCreate`
   - `20260207042545_AddAppEntityBaseToProducts`
   - `20260221000601_AddStoreIdToProducts`
-- Si se elimina manualmente `Products`, EF no la recrea al iniciar mientras `__EFMigrationsHistory` siga marcado; ejecutar `dotnet ef database update` con historial consistente.
+  - `20260726164030_AddTenantsStoresSubscriptions`
+- Si se elimina manualmente una tabla, EF no la recrea al iniciar mientras `__EFMigrationsHistory` siga marcado; ejecutar `dotnet ef database update` con historial consistente. (B-02 sigue abierto: no hay auto-migracion controlada en el arranque)
 
 ---
 
@@ -104,7 +135,7 @@ Soporte de tests:
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost\\SQLEXPRESS;Database=EShopy.Dev;Trusted_Connection=True;TrustServerCertificate=True;"
+    "DefaultConnection": "Server=localhost,1433;Database=EShopy.Dev;User Id=sa;Password=EShopy_Dev_2026!;TrustServerCertificate=True;"
   },
   "Keycloak": {
     "Authority": "http://localhost:8080/realms/eshopy",
@@ -112,7 +143,10 @@ Soporte de tests:
     "RequireHttpsMetadata": false,
     "ValidateIssuer": true,
     "ValidateAudience": true,
-    "ValidateLifetime": true
+    "ValidateLifetime": true,
+    "AdminBaseUrl": "http://localhost:8080",
+    "AdminClientId": "eshopy-api",
+    "AdminClientSecret": "eshopy-api-secret"
   },
   "Cors": {
     "AllowedOrigins": [
@@ -123,5 +157,6 @@ Soporte de tests:
 }
 ```
 
-- DB: SQL Server Express local, base `EShopy.Dev`
-- Keycloak: `localhost:8080`, realm `eshopy`, cliente recomendado para admin/API `eshopy-api`
+- DB + Keycloak: `docker compose up -d` (ver `docker-compose.yml` en la raiz)
+- Keycloak: `localhost:8080`, realm `eshopy` (import automatico), cliente `eshopy-api` (tambien usado
+  para la Admin API — service account con roles `realm-management`/`manage-users`,`view-users`)

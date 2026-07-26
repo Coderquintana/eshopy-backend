@@ -12,6 +12,7 @@
 | **Carrito server-side** | Persistencia en BD con `CartToken`. No en `localStorage` | Inconsistencias de inventario |
 | **Paginación en SQL** | `IProductRepository` recibe `PagedQuery`. Resolver en base de datos, no en memoria | Performance inaceptable en catálogos grandes |
 | **OrderNumber atómico** | Generado con `TenantCounters` usando `UPDLOCK/ROWLOCK` | Duplicados en concurrencia alta |
+| **Sin Unit of Work genérico** | Cada repositorio confirma su propia transacción (`SaveChangesAsync`), igual que `EfProductRepository`. `EShopyDbContext` ya ES un Unit of Work — envolverlo en otra interfaz es abstraer una abstracción sin necesidad real. Para los flujos que sí escriben a través de varios agregados en una sola transacción (ej. onboarding: Tenant+Store+TenantUser+Subscription), se define un writer angosto de un solo propósito (`ITenantOnboardingWriter`, `ITenantActivationWriter`) en vez de un `IUnitOfWork` reutilizable | Reintroducir `IUnitOfWork` sin que exista una operación concreta que lo necesite (se probó y se revirtió el 2026-07-26, ver `BACKLOG.md`) |
 
 ---
 
@@ -46,6 +47,7 @@
 | `/health` | Health check sin contexto de tenant |
 | `/swagger/*` | Documentación API |
 | `/api/onboarding/tenants` | Crea el tenant; no puede requerir tenant existente |
+| `/api/admin/tenants/*` | Operación a nivel plataforma (SUPERADMIN), no ligada a un subdominio comercial |
 | `/api/payments/webhooks/*` | Provider no envía subdominio; se resuelve por referencia interna |
 
 ---

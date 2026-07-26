@@ -10,7 +10,7 @@
 | `Subdomain` | `string` | No | Único en toda la plataforma. Ej: `"mitienda"` |
 | `BusinessName` | `string` | No | Nombre legal del negocio |
 | `Status` | `TenantStatus` | No | Ver tabla de estados |
-| `Plan` | `string` | No | `"basic"`, `"gold"`, `"diamond"` |
+| `Plan` | `TenantPlan` (enum) | No | `Basic`, `Gold`, `Diamond`. El request de onboarding acepta el string en minusculas (`"basic"`) |
 | `CreatedAtUtc` | `DateTime` | No | Fecha de alta |
 | `ActivatedAtUtc` | `DateTime?` | Sí | Cuando pasó a Active |
 
@@ -27,9 +27,9 @@
 
 | Desde → Hacia | Trigger |
 |---|---|
-| PendingPayment → Active | Webhook de pago de suscripción confirmado |
+| PendingPayment → Active | Webhook de pago de suscripción confirmado (Fase 8, no implementado) o `POST /api/admin/tenants/{id}/activate` (SUPERADMIN, disponible hoy) |
 | Active → Suspended | Falla de renovación de suscripción |
-| Suspended → Active | Pago de renovación exitoso |
+| Suspended → Active | Pago de renovación exitoso o activación manual |
 | Active → Cancelled | Cancelación voluntaria |
 | Suspended → Cancelled | Cancelación por mora |
 
@@ -79,19 +79,23 @@
 
 ## Endpoints asociados
 
+Ver `architecture/api-contracts.md` para el detalle completo de request/response.
+
 | Método | Ruta | Auth | Descripción |
 |---|---|---|---|
-| POST | `/api/onboarding/tenants` | Público | Crear tenant (inicia onboarding) |
+| POST | `/api/onboarding/tenants` | Público | Crear tenant (Tenant + Store + Owner en Keycloak + Subscription) |
+| GET | `/api/admin/tenants/{id}` | TenantsRead (SUPERADMIN) | Detalle de tenant |
+| POST | `/api/admin/tenants/{id}/activate` | TenantsWrite (SUPERADMIN) | Activacion manual — unico trigger disponible hasta que exista el webhook de pago (Fase 8) |
 | GET | `/api/store` | Público | Config pública del store (Storefront) |
 | PUT | `/api/store` | StoreWrite | Actualizar config del store (Admin) |
-| GET | `/api/admin/users` | UsersManage | Listar usuarios del tenant |
-| POST | `/api/admin/users` | UsersManage | Invitar usuario al tenant |
+| GET | `/api/admin/users` | UsersManage | ❌ No implementado — listar usuarios del tenant |
+| POST | `/api/admin/users` | UsersManage | ❌ No implementado — invitar Admin/Staff adicional al tenant |
 
 ## Estado de implementación
 
 | Entidad | Estado |
 |---|---|
-| Tenant | ❌ No implementado (Fase 4) |
-| Store | ⚠️ Skeleton — `StoreController` retorna datos hardcodeados |
-| TenantUser | ❌ No implementado (Fase 4) |
-| TenantResolutionMiddleware | ✅ Implementado (InMemoryTenantResolver — placeholder) |
+| Tenant | ✅ Implementado — `EShopy.Domain/Tenants/Tenant.cs`, entidad global, maquina de estados completa |
+| Store | ✅ Implementado — `EShopy.Domain/Tenants/Store.cs`, 1:1 con Tenant, `CurrencyCode` inmutable tras creacion |
+| TenantUser | ✅ Implementado — solo el Owner se crea hoy (onboarding). Invitar Admin/Staff adicionales (`GET/POST /api/admin/users`) queda pendiente, ver BACKLOG.md |
+| TenantResolutionMiddleware | ✅ Implementado contra DB real (`EfTenantResolver`, cache ~60s por subdominio). Bloquea `Suspended`/`Cancelled` con 403 |

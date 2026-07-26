@@ -27,16 +27,20 @@
 |---|---|---|
 | `VALIDATION_ERROR` | 400 | Error de validación (FluentValidation) |
 | `TENANT_NOT_FOUND` | 404 | Tenant no encontrado para el subdominio |
-| `SUBDOMAIN_ALREADY_EXISTS` | 409 | Subdominio ya en uso al crear tenant |
 | `UNAUTHORIZED` | 401 | Token ausente o inválido |
 | `FORBIDDEN` | 403 | Sin permisos (token válido pero policy falla) |
 | `NOT_FOUND` | 404 | Recurso no encontrado |
-| `CONFLICT` | 409 | Slug/SKU duplicado u otro conflicto |
+| `CONFLICT` | 409 | Slug/SKU/subdominio duplicado u otro conflicto de unicidad |
+| `CONCURRENCY_CONFLICT` | 409 | El recurso fue modificado por otro proceso (RowVersion) |
 | `PRODUCT_NOT_AVAILABLE` | 409 | Producto no disponible para agregar al carrito |
 | `PRODUCT_INVALID_STATE` | 409 | Transición de estado de producto no permitida |
-| `ORDER_INVALID_STATE` | 409 | Transición de orden no permitida |
-| `PAYMENT_WEBHOOK_INVALID` | 401 | Webhook con firma inválida |
-| `PAYMENT_PROVIDER_ERROR` | 502 | Error al comunicarse con el provider de pago |
+| `TENANT_INVALID_STATE` | 409 | Transición de estado de tenant/suscripción no permitida |
+| `TENANT_SUSPENDED` | 403 | El tenant esta suspendido (mora) — bloqueado por `TenantResolutionMiddleware` |
+| `TENANT_CANCELLED` | 403 | El tenant fue cancelado — bloqueado por `TenantResolutionMiddleware` |
+| `EXTERNAL_SERVICE_ERROR` | 502 | Falla al comunicarse con un servicio externo (ej. Keycloak Admin API) |
+| `ORDER_INVALID_STATE` | 409 | Transición de orden no permitida (diseño, no implementado) |
+| `PAYMENT_WEBHOOK_INVALID` | 401 | Webhook con firma inválida (diseño, no implementado) |
+| `PAYMENT_PROVIDER_ERROR` | 502 | Error al comunicarse con el provider de pago (diseño, no implementado) |
 | `GENERIC_ERROR` | 500 | Error interno no controlado |
 
 ---
@@ -181,8 +185,80 @@ Detalle de producto público por slug.
 
 ---
 
+## Tenants / Store — Onboarding
+
+### POST /api/onboarding/tenants
+Crea un tenant nuevo: Tenant (PendingPayment) + Store (defaults) + usuario Owner en Keycloak +
+Subscription (PendingActivation). Excluido de `TenantResolutionMiddleware` (no requiere subdominio).
+
+**Auth**: Público
+
+**Request body:**
+```json
+{
+  "subdomain": "mitienda",
+  "businessName": "Mi Tienda SRL",
+  "ownerEmail": "dueño@mitienda.com",
+  "ownerName": "Juan Pérez",
+  "plan": "basic"
+}
+```
+
+**Response 201:**
+```json
+{
+  "tenantId": "aaaaaaaa-...",
+  "subdomain": "mitienda",
+  "status": "PendingPayment"
+}
+```
+
+> No incluye `paymentUrl`: el modulo de Payments (Fase 8) todavia no existe. Ver
+> `POST /api/admin/tenants/{id}/activate` para la activacion disponible hoy.
+
+**Errores**: `VALIDATION_ERROR` (400), `CONFLICT` si el subdominio ya existe (409),
+`EXTERNAL_SERVICE_ERROR` si falla la creacion del usuario en Keycloak (502).
+
+---
+
+### GET /api/admin/tenants/{id:guid}
+Detalle de un tenant. Operacion a nivel plataforma — excluido de `TenantResolutionMiddleware`.
+
+**Auth**: `TenantsRead` (SUPERADMIN)
+
+**Response 200:**
+```json
+{
+  "id": "aaaaaaaa-...",
+  "subdomain": "mitienda",
+  "businessName": "Mi Tienda SRL",
+  "status": "Active",
+  "plan": "Basic",
+  "createdAtUtc": "2026-07-26T13:00:00Z",
+  "activatedAtUtc": "2026-07-26T13:05:00Z"
+}
+```
+
+---
+
+### POST /api/admin/tenants/{id:guid}/activate
+Activa manualmente un tenant en `PendingPayment` (o lo reactiva desde `Suspended`). Herramienta de
+soporte/ops permanente — hasta que exista el webhook de pago (Fase 8), es la unica forma de activar
+un tenant. Excluido de `TenantResolutionMiddleware`.
+
+**Auth**: `TenantsWrite` (SUPERADMIN)
+
+**Response 200**: `TenantAdminDto` con `status = "Active"`.
+
+**Errores**: `NOT_FOUND` si el tenant o su suscripcion no existen (404),
+`TENANT_INVALID_STATE` si la transicion no es valida, ej. tenant ya `Cancelled` (409).
+
+---
+
+## Store
+
 ### GET /api/store
-Configuración pública del store.
+Configuración pública del store, resuelto por subdominio.
 
 **Auth**: Anónimo
 
@@ -194,9 +270,33 @@ Configuración pública del store.
   "currencyCode": "PYG",
   "timezone": "America/Asuncion",
   "primaryColor": "#007bff",
-  "logoUrl": "https://..."
+  "logoUrl": "https://...",
+  "backgroundColor": "#FFFFFF",
+  "description": "Una tienda de ejemplo"
 }
 ```
+
+---
+
+### PUT /api/store
+Actualiza el perfil de la tienda (nombre, timezone, branding). `CurrencyCode` no es editable: cambiarla
+rompería precios ya registrados en Products/Orders.
+
+**Auth**: `StoreWrite`
+
+**Request body:**
+```json
+{
+  "name": "Mi Tienda",
+  "timezone": "America/Asuncion",
+  "primaryColor": "#007bff",
+  "logoUrl": "https://cdn.example.com/logo.png",
+  "backgroundColor": "#FFFFFF",
+  "description": "Una tienda de ejemplo"
+}
+```
+
+**Response 200**: `StoreProfileDto` actualizado.
 
 ---
 
@@ -231,14 +331,6 @@ Configuración pública del store.
 
 ---
 
-## Onboarding endpoints (diseño, no implementado)
-
-| Método | Ruta | Auth | Descripción |
-|---|---|---|---|
-| POST | `/api/onboarding/tenants` | Público | Crear tenant (PendingPayment) |
-
----
-
 ## DTOs de referencia
 
 ### ProductAdminDto
@@ -265,6 +357,28 @@ public record PagedResult<T>(
     IReadOnlyList<T> Items,
     int Page, int PageSize,
     int TotalCount, int TotalPages
+);
+```
+
+### TenantOnboardingResultDto
+```csharp
+public record TenantOnboardingResultDto(Guid TenantId, string Subdomain, string Status);
+```
+
+### TenantAdminDto
+```csharp
+public record TenantAdminDto(
+    Guid Id, string Subdomain, string BusinessName,
+    string Status, string Plan,
+    DateTime CreatedAtUtc, DateTime? ActivatedAtUtc
+);
+```
+
+### StoreProfileDto
+```csharp
+public record StoreProfileDto(
+    Guid StoreId, string Name, string CurrencyCode, string Timezone,
+    string? PrimaryColor, string? LogoUrl, string? BackgroundColor, string? Description
 );
 ```
 

@@ -79,6 +79,14 @@
 
 ## Estado de implementación
 
-❌ **No implementado.** Planificado en Fase 4 del backlog.
+✅ **Entidad implementada** — `EShopy.Domain/Subscriptions/Subscription.cs`. Se crea en
+`PendingActivation` durante el onboarding y pasa a `Active` via
+`POST /api/admin/tenants/{id}/activate` (SUPERADMIN), junto con el Tenant.
+
+❌ **No implementado**: `PriceAmount` real (GOVERNANCE.md marca los 3 precios como "TBD" — se usa 0
+mientras tanto, ver `EShopy.Application/Tenants/PlanPricing.cs`), integracion con Bancard/PagoPar,
+webhook de pago (`POST /api/billing/webhooks`), renovacion mensual automatica, y las transiciones
+`Active → PastDue` / `PastDue → Suspended` (nada las dispara todavia). Todo esto sigue planificado
+para Fase 8.
 
 Ver `workflows/onboarding-flow.md` para el flujo completo de activación de tenant.

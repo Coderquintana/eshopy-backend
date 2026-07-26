@@ -2,6 +2,7 @@
 
 > Estado al 2026-07-26. Reauditado contra el codigo real en HEAD (d531917, ultimo commit 2026-02-20) tras una pausa de ~5 meses.
 > B-01, B-03 y P-01 estaban marcados como pendientes pero el codigo ya los resuelve desde el commit `35cebe9` (refactor CQRS) — se movieron a COMPLETADAS. Se agrego una seccion nueva de deuda tecnica de arquitectura (D-xx) que no estaba trackeada; D-02 y D-04 se implementaron y verificaron el mismo dia. D-01 (Unit of Work explicito) se probo y se revirtio a proposito — ver nota debajo de la tabla.
+> Mismo dia: Fase 4 completa (Tenants + Store + Subscription minima) con infra Docker Compose para SQL Server + Keycloak. Ver C-31 en adelante.
 
 ---
 
@@ -34,18 +35,15 @@ _(vacio)_
 ### Fase 3 - Persistencia base
 | # | Tarea | Descripcion |
 |---|---|---|
-| F3-01 | Global Query Filter por TenantId | EF Core: filtro automatico en entidades multi-tenant |
 | F3-02 | Interceptor TenantId + fechas UTC | Impedir SaveChanges si TenantId ausente; setear timestamps UTC |
-| F3-03 | InMemoryTenantResolver configurable | Permitir tenant configurable en dev (no solo `localhost`) |
-| F3-04 | Migracion completa con todas las tablas | Orders, Payments, Carts, Tenants, Subscriptions |
+| F3-04 | Migracion completa con todas las tablas | Orders, Payments, Carts (Tenants/Stores/Subscriptions ya migrados, ver Fase 4) |
 
-### Fase 4 - Tenants (Onboarding)
+### Fase 4 - Tenants (Onboarding) — completa, ver COMPLETADAS C-31..C-37
 | # | Tarea | Descripcion |
 |---|---|---|
-| F4-01 | TenantEntity + StoreEntity | Entidades de dominio con estados |
-| F4-02 | CreateTenant con Result<T> | Caso de uso completo |
-| F4-03 | Integracion Keycloak para Owner | Crear usuario en realm al crear tenant |
-| F4-04 | SubscriptionEntity | Estado, plan, fechas |
+| F4-05 | Invitar TenantUsers adicionales | `GET/POST /api/admin/users` — solo el Owner se crea hoy (onboarding) |
+| F4-06 | Precios reales de planes | `PlanPricing.cs` retorna 0 para los 3 planes (GOVERNANCE.md los marca TBD). Reemplazar cuando el negocio defina precios |
+| F4-07 | Secret management para Keycloak Admin API en produccion | `appsettings.Production.json` sigue con un placeholder de secret; inyectar via secret store real antes de deployar |
 
 ### Fase 5 - Catalog (refactor)
 | # | Tarea | Descripcion |
@@ -115,6 +113,7 @@ _(vacio)_
 | C-13 | FluentValidation para Products | Catalog | 2026-02-14 |
 | C-14 | AppEntity base con auditoria | Core | 2026-02-07 |
 | C-15 | EfProductRepository + migraciones iniciales | Catalog | 2026-02-07 |
+| C-15b | F3-01 Global Query Filter por TenantId (Products) | Core | 2026-02-07 |
 | C-16 | Result<T> en dominio | Core | 2026-02-07 |
 | C-17 | JWT Bearer (Keycloak) configurado | Auth | 2026-02-14 |
 | C-18 | Authorization policies iniciales | Auth | 2026-02-14 |
@@ -130,3 +129,11 @@ _(vacio)_
 | C-28 | P-01 `EfProductRepository` completo para el alcance actual (Add/Update/GetById/GetBySlug/paginado/unicidad) | Catalog | 2026-02-20 |
 | C-29 | D-02 `GlobalExceptionMiddleware` mapea `DbUpdateConcurrencyException` y violacion de indice unico (`SqlException` 2601/2627) a 409 Conflict | Core | 2026-07-26 |
 | C-30 | D-04 `SubdomainResolver` extraido a `Application/Common/Tenants` (puro, testeable) + 9 tests unitarios | Core/Tenants | 2026-07-26 |
+| C-31 | Docker Compose para SQL Server + Keycloak + su Postgres, reemplaza el setup manual | Infra | 2026-07-26 |
+| C-32 | F4-01 `Tenant`/`Store`/`TenantUser` (dominio) + `Subscription` (dominio, minima) | Tenants | 2026-07-26 |
+| C-33 | F4-02 `CreateTenantCommand` (onboarding) con `Result<T>`, `ITenantOnboardingWriter` para atomicidad Tenant+Store+TenantUser+Subscription | Tenants | 2026-07-26 |
+| C-34 | F4-03 `KeycloakAdminClient` — integracion real con la Admin API de Keycloak (crea Owner, asigna rol `TENANT_OWNER`), reutiliza el service account de `eshopy-api` | Tenants | 2026-07-26 |
+| C-35 | Activacion manual SUPERADMIN (`POST /api/admin/tenants/{id}/activate`) — unico trigger de `PendingPayment → Active` hasta que exista Payments (Fase 8) | Tenants | 2026-07-26 |
+| C-36 | `GET`/`PUT /api/store` real (reemplaza el skeleton hardcodeado); `EfStoreService`/`EfTenantResolver` reemplazan los placeholders in-memory, con cache ~60s en la resolucion de tenant | Tenants/Store | 2026-07-26 |
+| C-37 | FKs `Products.TenantId/StoreId → Tenants/Stores` (antes Guid sueltos, marcados PENDIENTE en database-schema.md); tests de dominio y flujo de onboarding end-to-end | Catalog/Tenants | 2026-07-26 |
+| C-38 | F3-03 superado: `InMemoryTenantResolver` (placeholder in-memory) reemplazado por completo por `EfTenantResolver` (ver C-36) | Tenants | 2026-07-26 |
