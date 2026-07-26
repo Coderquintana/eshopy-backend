@@ -22,4 +22,7 @@ public static class ErrorCodes
 
   // Infraestructura / integraciones externas
   public const string ExternalServiceError = "EXTERNAL_SERVICE_ERROR";
+
+  // Orders / Payments
+  public const string OrderInvalidState = "ORDER_INVALID_STATE";
 }
