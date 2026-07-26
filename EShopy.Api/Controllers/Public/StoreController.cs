@@ -1,36 +1,37 @@
-using EShopy.Application.Common.Context;
+using EShopy.Application.Tenants.Commands;
+using EShopy.Application.Tenants.Contracts;
+using EShopy.Application.Tenants.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EShopy.Api.Controllers.Public;
 
-[AllowAnonymous]
+/// <summary>Configuracion de la tienda del tenant resuelto por subdominio.</summary>
 [Route("api/store")]
-public sealed class StoreController(TenantContext tenant) : BaseApiController
+public sealed class StoreController(
+  GetStoreQueryHandler getStoreHandler,
+  UpdateStoreCommandHandler updateStoreHandler) : BaseApiController
 {
+  /// <summary>Configuracion publica de la tienda (branding, moneda, timezone).</summary>
   [HttpGet]
-  [ProducesResponseType(typeof(StorePublicDto), StatusCodes.Status200OK)]
-  public ActionResult<StorePublicDto> GetStore()
+  [AllowAnonymous]
+  [ProducesResponseType(typeof(StoreProfileDto), StatusCodes.Status200OK)]
+  [ProducesResponseType(typeof(object), StatusCodes.Status404NotFound)]
+  public async Task<ActionResult<StoreProfileDto>> GetStore(CancellationToken ct)
   {
-    // Skeleton: devolver valores mínimos. En implementación real: leer desde DB.
-    return Ok(new StorePublicDto
-    {
-      StoreId = Guid.Parse("22222222-2222-2222-2222-222222222222"),
-      Name = $"eShopy ({tenant.Subdomain})",
-      CurrencyCode = "PYG",
-      Timezone = "America/Asuncion",
-      PrimaryColor = null,
-      LogoUrl = null
-    });
+    var result = await getStoreHandler.Handle(new GetStoreQuery(), ct);
+    return FromResult(result);
   }
-}
 
-public sealed class StorePublicDto
-{
-  public required Guid StoreId { get; init; }
-  public required string Name { get; init; }
-  public required string CurrencyCode { get; init; }
-  public required string Timezone { get; init; }
-  public string? PrimaryColor { get; init; }
-  public string? LogoUrl { get; init; }
+  /// <summary>Actualiza el perfil de la tienda (nombre, timezone, branding).</summary>
+  [HttpPut]
+  [Authorize(Policy = "StoreWrite")]
+  [ProducesResponseType(typeof(StoreProfileDto), StatusCodes.Status200OK)]
+  [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
+  [ProducesResponseType(typeof(object), StatusCodes.Status404NotFound)]
+  public async Task<ActionResult<StoreProfileDto>> UpdateStore([FromBody] UpdateStoreCommand command, CancellationToken ct)
+  {
+    var result = await updateStoreHandler.Handle(command, ct);
+    return FromResult(result);
+  }
 }
