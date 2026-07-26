@@ -10,6 +10,9 @@ public interface IProductRepository
   Task<Product?> GetByIdAsync(Guid tenantId, Guid id, CancellationToken ct);
   Task<Product?> GetBySlugAsync(Guid tenantId, string slug, CancellationToken ct);
 
+  /// <summary>Batch lookup — usado por Cart para armar su DTO sin N+1 queries.</summary>
+  Task<IReadOnlyList<Product>> GetByIdsAsync(Guid tenantId, IReadOnlyCollection<Guid> ids, CancellationToken ct);
+
   /// <summary>Lista paginada para el panel de administración (todos los estados).</summary>
   Task<(IReadOnlyList<Product> Items, long TotalCount)> GetAdminPagedAsync(Guid tenantId, PagedQuery query, CancellationToken ct);
 
