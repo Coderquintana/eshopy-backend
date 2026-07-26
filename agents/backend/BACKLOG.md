@@ -59,6 +59,7 @@ _(vacio)_
 |---|---|---|
 | F8-03 | BancardAdapter | Integracion con Bancard API — bloqueado hasta tener la documentacion real del provider |
 | F8-04 | PagoParAdapter | Integracion con PagoPar API — idem |
+| F8-07 | **Endpoint publico de consulta de pedido** | **Bloquea el frontend.** Detectado el 2026-07-26 al construir el Storefront. Hoy `GET /api/orders/{id}` exige `orders.read` (admin), asi que un comprador anonimo recibe 401. El flujo real lo necesita: tras pagar, el provider redirige a `/checkout/exito?orderId=...` y en esa navegacion nueva el front ya perdio el `CheckoutResultDto` que tenia en memoria — no tiene con que mostrar "Pedido #22, ₲70.000, gracias". Hace falta algo como `GET /api/public/orders/{id}` que devuelva un DTO reducido (numero, total, estado, items; **sin** email ni direccion del comprador) y que autorice por posesion de un secreto, no por sesion: o un token de un solo uso devuelto en el checkout, o el `CartToken` que origino el pedido. Sin esto no hay pantalla de confirmacion de compra |
 
 ### Fase 9 - Observabilidad — F9-01/F9-03 completos (ver C-51..C-52), F9-02 pendiente
 | # | Tarea | Descripcion |
