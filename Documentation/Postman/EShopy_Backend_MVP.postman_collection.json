@@ -603,7 +603,16 @@
           "name": "Checkout",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "X-Cart-Token",
+                "value": "{{cartToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/checkout",
               "host": [
@@ -615,7 +624,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cartToken\": \"{{cartToken}}\",\n  \"buyer\": {\n    \"name\": \"Buyer\",\n    \"email\": \"buyer@email.com\",\n    \"phone\": null,\n    \"document\": null\n  },\n  \"shippingAddress\": null\n}"
+              "raw": "{\n  \"buyerEmail\": \"buyer@email.com\",\n  \"buyerName\": \"Buyer\",\n  \"shippingAddress\": null\n}"
             }
           }
         },
@@ -647,6 +656,59 @@
                   "value": "10"
                 }
               ]
+            }
+          }
+        },
+        {
+          "name": "Get Order By Id (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Change Order Status (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}",
+                "status"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": 1\n}"
             }
           }
         }
