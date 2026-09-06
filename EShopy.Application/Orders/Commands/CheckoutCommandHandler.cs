@@ -91,7 +91,8 @@ public sealed class CheckoutCommandHandler(
         OrderNumber = orderNumber,
         TotalAmount = order.TotalAmount,
         CurrencyCode = store.CurrencyCode,
-        PaymentUrl = payment.ProviderPaymentUrl!
+        PaymentUrl = payment.ProviderPaymentUrl!,
+        AccessToken = order.AccessToken
       });
     }
     catch (DomainException ex)

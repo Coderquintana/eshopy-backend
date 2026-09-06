@@ -107,6 +107,7 @@ public static class DependencyInjection
     services.AddScoped<ChangeOrderStatusCommandHandler>();
     services.AddScoped<GetOrderByIdQueryHandler>();
     services.AddScoped<GetOrdersQueryHandler>();
+    services.AddScoped<GetPublicOrderQueryHandler>();
 
     // Handlers — Payments
     services.AddScoped<ProcessPaymentWebhookCommandHandler>();

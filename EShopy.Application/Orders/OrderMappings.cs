@@ -20,6 +20,17 @@ internal static class OrderMappings
     UpdatedAtUtc = order.UpdatedAtUtc
   };
 
+  internal static PublicOrderDto ToPublicDto(Order order) => new()
+  {
+    Id = order.Id,
+    OrderNumber = order.OrderNumber,
+    Status = order.Status.ToString(),
+    TotalAmount = order.TotalAmount,
+    CurrencyCode = order.CurrencyCode,
+    Items = order.Items.Select(ToItemDto).ToList(),
+    CreatedAtUtc = order.CreatedAtUtc
+  };
+
   private static OrderItemDto ToItemDto(OrderItem item) => new()
   {
     ProductId = item.ProductId,
