@@ -50,6 +50,10 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
       .HasMaxLength(100)
       .HasComment("CartToken del carrito origen.");
 
+    builder.Property(o => o.AccessToken)
+      .HasMaxLength(64)
+      .HasComment("Secreto opaco que autoriza la consulta publica del pedido (comprador anonimo). Nunca se expone en lecturas.");
+
     builder.Property(o => o.CurrencyCode)
       .HasColumnType("char(3)")
       .HasComment("Heredado del Store al momento del checkout.");

@@ -1,3 +1,6 @@
+using System.Buffers.Text;
+using System.Security.Cryptography;
+using System.Text;
 using EShopy.Domain.Common.Entities;
 using EShopy.Domain.Common.Errors;
 using EShopy.Domain.Common.Exceptions;
@@ -20,6 +23,7 @@ public sealed class Order : AppEntity
     string buyerName,
     string? shippingAddress,
     string cartToken,
+    string accessToken,
     string currencyCode,
     decimal totalAmount,
     DateTime createdAtUtc)
@@ -32,6 +36,7 @@ public sealed class Order : AppEntity
     BuyerName = buyerName;
     ShippingAddress = shippingAddress;
     CartToken = cartToken;
+    AccessToken = accessToken;
     CurrencyCode = currencyCode;
     TotalAmount = totalAmount;
     PaymentId = null;
@@ -46,6 +51,14 @@ public sealed class Order : AppEntity
   public string BuyerName { get; private set; }
   public string? ShippingAddress { get; private set; }
   public string CartToken { get; private set; }
+
+  /// <summary>
+  /// Secreto opaco generado al crear el pedido. Es lo unico que autoriza la consulta publica
+  /// (GET /api/public/orders/{id}) — el comprador es anonimo, no hay sesion contra la cual validar.
+  /// Nunca se expone en los DTOs de lectura: solo se devuelve una vez, en la respuesta del checkout.
+  /// </summary>
+  public string AccessToken { get; private set; }
+
   public string CurrencyCode { get; private set; }
   public decimal TotalAmount { get; private set; }
   public Guid? PaymentId { get; private set; }
@@ -73,7 +86,7 @@ public sealed class Order : AppEntity
     var totalAmount = orderItems.Sum(i => i.Subtotal);
 
     var order = new Order(id, tenantId, storeId, normalizedEmail, normalizedName,
-      NormalizeOptional(shippingAddress), cartToken, currencyCode, totalAmount, createdAtUtc);
+      NormalizeOptional(shippingAddress), cartToken, GenerateAccessToken(), currencyCode, totalAmount, createdAtUtc);
 
     order._items.AddRange(orderItems);
     return order;
@@ -119,6 +132,24 @@ public sealed class Order : AppEntity
     Status = newStatus;
     UpdatedAtUtc = updatedAtUtc;
   }
+
+  /// <summary>
+  /// Compara en tiempo constante el token recibido contra el del pedido. Devuelve false ante un
+  /// token vacio (pedidos anteriores a esta funcionalidad quedan sin AccessToken en DB).
+  /// </summary>
+  public bool MatchesAccessToken(string? accessToken)
+  {
+    if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(AccessToken))
+      return false;
+
+    return CryptographicOperations.FixedTimeEquals(
+      Encoding.UTF8.GetBytes(accessToken),
+      Encoding.UTF8.GetBytes(AccessToken));
+  }
+
+  /// <summary>256 bits de entropia en Base64Url (43 chars, sin padding ni caracteres a escapar).</summary>
+  private static string GenerateAccessToken()
+    => Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
 
   private static string EnsureBuyerEmail(string buyerEmail)
   {
