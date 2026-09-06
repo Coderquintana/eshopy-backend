@@ -10,7 +10,7 @@
 |---|---|---|---|
 | BF-01 | Pantalla de gestión de carrito (Admin) | Cart API (Fase 6) | ❌ No implementado |
 | BF-02 | Pantalla de pedidos (Admin + Storefront) | Orders API (Fase 7) | ❌ No implementado |
-| BF-03 | Flujo de pago (Storefront) | Payments API (Fase 8) | ❌ No implementado |
+| BF-03 | Flujo de pago (Storefront) | Payments API (Fase 8) | ⚠️ Checkout + webhook + consulta publica del pedido listos; faltan los adapters reales Bancard/PagoPar (bloqueados sin su documentacion) |
 | BF-04 | Pantalla de suscripción / onboarding | Onboarding API (Fase 4) | ❌ No implementado |
 
 ---
@@ -37,6 +37,12 @@ Estos endpoints del backend están implementados y el frontend puede construirse
 | LB-14 | Storefront: ProductListComponent (catálogo público) | `GET /api/public/products` | Media |
 | LB-15 | Storefront: ProductDetailComponent (slug) | `GET /api/public/products/{slug}` | Media |
 | LB-16 | Storefront: AppHeader con logo y nombre del store | `GET /api/store` | Media |
+| LB-17 | Storefront: pantalla de confirmacion de compra (`/checkout/exito?orderId=...`) | `GET /api/public/orders/{id}` (F8-07, listo desde 2026-09-06) | Alta |
+
+> **LB-17 — como autorizar la consulta del pedido**: `POST /api/checkout` devuelve `accessToken` una
+> sola vez. Guardarlo (localStorage/sessionStorage, junto al `orderId`) **antes** de redirigir a
+> `paymentUrl`; al volver del provider, mandarlo en el header `X-Order-Token`. Sin ese header el
+> endpoint responde 400, y con un token que no coincide responde 404.
 
 ---
 

@@ -20,6 +20,7 @@
 | `TotalAmount` | `decimal` | No | Suma de OrderItems. Snapshot |
 | `CurrencyCode` | `string` | No | Heredado del Store |
 | `CartToken` | `string` | No | CartToken del carrito origen |
+| `AccessToken` | `string` | No | Secreto opaco (43 chars Base64Url, 256 bits) generado al crear. Autoriza la consulta publica del pedido. Solo se expone una vez, en `CheckoutResultDto` |
 | `PaymentId` | `Guid?` | Sí | FK a Payment (null hasta que se inicia pago) |
 | — columnas AppEntity — | | | CreatedAtUtc, UpdatedAtUtc, etc. |
 
@@ -194,6 +195,32 @@ el provider es recuperable manualmente (soporte/ops), un huerfano local silencio
 | `(TenantId, Status)` | IX |
 | `(TenantId, BuyerEmail)` | IX |
 
+## Consulta publica del pedido (F8-07)
+
+El comprador del MVP es anonimo: no hay sesion contra la cual autorizar `GET /api/orders/{id}` (que
+exige `orders.read`, un permiso de admin). Pero el flujo real lo necesita — tras pagar, el provider
+redirige a `/checkout/exito?orderId=...` y esa navegacion nueva ya perdio el `CheckoutResultDto` que
+el storefront tenia en memoria.
+
+**Solucion: autorizar por posesion de un secreto, no por identidad.**
+
+- `Order.AccessToken` se genera en `Order.Create` con `RandomNumberGenerator.GetBytes(32)` en
+  Base64Url — 43 chars, sin padding ni caracteres que haya que escapar en una URL.
+- Se devuelve **una sola vez**, en la respuesta de `POST /api/checkout`. El frontend debe guardarlo
+  antes de redirigir al provider.
+- `GET /api/public/orders/{id}` (header `X-Order-Token`) devuelve `PublicOrderDto`: numero, estado,
+  total, moneda e items. **Sin** email, nombre ni direccion — quien tiene el token pudo obtenerlo de
+  una URL compartida, y esos datos no hacen falta para confirmar la compra. Tampoco devuelve el token.
+- La comparacion es en tiempo constante (`Order.MatchesAccessToken` → `CryptographicOperations.FixedTimeEquals`).
+- Token que no coincide → **404, no 403**: distinguirlos permitiria enumerar que pedidos existen.
+- Los pedidos creados antes de la migracion `AddOrderAccessToken` tienen `AccessToken` vacio en DB
+  (default `""`) y quedan fuera de esta via — `MatchesAccessToken` rechaza el token vacio de los dos
+  lados, asi que un atacante no puede consultarlos mandando un header vacio.
+
+**Alternativa descartada**: reusar el `CartToken` que origino el pedido. Acopla el acceso al pedido a
+un token que el storefront rota y descarta tras el checkout, y le da un segundo proposito a un secreto
+que ya existia para otra cosa.
+
 ## Casos de uso asociados
 
 | UC | Nombre |
@@ -202,6 +229,7 @@ el provider es recuperable manualmente (soporte/ops), un huerfano local silencio
 | UC-07 | Iniciar pago — crea Payment asociado |
 | UC-08 | Confirmar pago — webhook actualiza Order a Paid |
 | UC-09 | Administrar pedidos — admin lista/detalla Orders |
+| UC-10 | Confirmacion de compra — el comprador anonimo consulta su pedido al volver del provider |
 
 ## Estado de implementación
 
@@ -210,3 +238,9 @@ concurrencia real (25 checkouts simultaneos) que encontro y corrigio el bug desc
 el subconjunto minimo de Payments necesario para que Checkout funcione (`Payment` entidad,
 `IPaymentProviderAdapter.InitiateAsync`, `FakePaymentProviderAdapter`) — el modulo completo de Payments
 (webhook, idempotencia, adapters reales) sigue en Fase 8, ver `domain/payments.md`.
+
+✅ **F8-07 (consulta publica del pedido) implementado y verificado en vivo** (2026-09-06) contra SQL
+Server real: checkout → `GET /api/public/orders/{id}` con el token correcto (200), token invalido
+(404), prefijo del token real (404), sin header (400), pedido legacy sin token (404), endpoint admin
+sigue devolviendo 401 sin auth. Tambien el flujo completo: webhook `Captured` → la consulta publica
+pasa a `Paid`. Sin bugs nuevos.

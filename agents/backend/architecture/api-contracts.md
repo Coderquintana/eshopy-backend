@@ -415,10 +415,40 @@ Headers: X-Cart-Token: <uuid>
 
 **Response 200:** `CheckoutResultDto` (ver DTOs de referencia).
 
+> La respuesta incluye `accessToken`: guardarlo **antes** de redirigir al provider — es lo unico que
+> autoriza `GET /api/public/orders/{id}` despues (ver abajo), y el backend no lo devuelve de nuevo.
+
 **Errores**: `VALIDATION_ERROR` (400, email invalido, carrito vacio), `NOT_FOUND` (404, no hay Store
 configurado), `PRODUCT_NOT_AVAILABLE` (409, un item del carrito ya no esta Active),
 `CONCURRENCY_CONFLICT` (409, muy raro — solo si se agotan los reintentos de `OrderNumber` bajo
 contencion extrema, ver `domain/orders.md`).
+
+---
+
+## Orders — Endpoint publico (comprador anonimo)
+
+### GET /api/public/orders/{id:guid}
+Vista reducida del pedido para la pantalla de confirmacion de compra. Existe porque tras pagar, el
+provider redirige al storefront en una navegacion nueva donde el `CheckoutResultDto` que estaba en
+memoria ya se perdio (F8-07).
+
+**Auth**: Anónimo, autorizado por **posesion del `AccessToken`** devuelto en el checkout — no por
+sesion (el comprador no tiene cuenta en el MVP).
+
+**Request:**
+```
+Headers: X-Order-Token: <accessToken devuelto por POST /api/checkout>
+```
+
+**Response 200:** `PublicOrderDto` (ver DTOs de referencia).
+
+**Errores**:
+- `VALIDATION_ERROR` (400) si falta el header `X-Order-Token`.
+- `NOT_FOUND` (404) si el pedido no existe **o** si el token no coincide. Son deliberadamente
+  indistinguibles: un 403 en el segundo caso permitiria enumerar que pedidos existen en el tenant.
+
+> El token se compara en tiempo constante (`Order.MatchesAccessToken`). Los pedidos anteriores a esta
+> funcionalidad tienen `AccessToken` vacio en DB y por lo tanto no son consultables por esta via.
 
 ---
 
@@ -571,9 +601,23 @@ public record StoreProfileDto(
 ```csharp
 public record CheckoutResultDto(
     Guid OrderId, int OrderNumber, decimal TotalAmount,
-    string CurrencyCode, string PaymentUrl
+    string CurrencyCode, string PaymentUrl, string AccessToken
 );
 ```
+> `AccessToken` es el secreto de consulta publica del pedido (F8-07). Es la **unica** vez que el
+> backend lo devuelve — el frontend debe persistirlo antes de redirigir a `PaymentUrl`.
+
+### PublicOrderDto
+```csharp
+public record PublicOrderDto(
+    Guid Id, int OrderNumber, string Status,
+    decimal TotalAmount, string CurrencyCode,
+    IReadOnlyList<OrderItemDto> Items, DateTime CreatedAtUtc
+);
+```
+> Vista del comprador anonimo. Deliberadamente **sin** `BuyerEmail`/`BuyerName`/`ShippingAddress` ni
+> el propio `AccessToken`: quien tiene el token pudo obtenerlo de una URL compartida, y esos datos no
+> hacen falta para confirmar la compra.
 
 ### OrderAdminDto
 ```csharp

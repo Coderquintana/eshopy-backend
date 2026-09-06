@@ -1,6 +1,7 @@
 # CURRENT_STATE - Estado actual del codigo
 
-> Reauditado 2026-07-26 contra HEAD. Sesion larga: revision de arquitectura + modulo Tenants/Store completo + infra Docker Compose + Carrito + Pedidos + webhook de Pagos (solo faltan los adapters reales Bancard/PagoPar) + bootstrap de DB (B-02) + limpieza de carritos (F6-04) + Serilog/AuditLog (F9-01/F9-03).
+> Actualizado 2026-09-06: F8-07 (consulta publica del pedido) implementado y verificado en vivo — ver
+> seccion propia abajo. Antes de eso: reauditado 2026-07-26 contra HEAD. Sesion larga: revision de arquitectura + modulo Tenants/Store completo + infra Docker Compose + Carrito + Pedidos + webhook de Pagos (solo faltan los adapters reales Bancard/PagoPar) + bootstrap de DB (B-02) + limpieza de carritos (F6-04) + Serilog/AuditLog (F9-01/F9-03).
 > Refleja el codigo real, no la documentacion ideal. Ver [BACKLOG.md](BACKLOG.md) seccion "DEUDA TECNICA / ARQUITECTURA" para gaps de escalabilidad no listados en la tabla de abajo.
 >
 > **Smoke test real (2026-07-26)**: `docker compose up -d` + migraciones + API corriendo, flujo
@@ -31,8 +32,8 @@
 | **Tenants** | ? Implementado (Fase 4) | `Tenant`/`TenantUser` reales, maquina de estados completa. `EfTenantResolver` reemplaza el diccionario en memoria (cache ~60s por subdominio). Onboarding (`POST /api/onboarding/tenants`) crea Tenant+Store+Owner(Keycloak)+Subscription atomicamente. Activacion manual SUPERADMIN implementada; webhook de pago sigue en Fase 8. Invitar Admin/Staff (`GET/POST /api/admin/users`) implementado y verificado en vivo (F4-05) |
 | **Subscriptions** | ?? Minimo (Fase 4) | Entidad y maquina de estados completas, se crea en el onboarding. Sin integracion de pago real: `PriceAmount` siempre 0 (precios TBD), sin renovacion automatica ni webhook — todo eso es Fase 8 |
 | **Carts** | ? Implementado (Fase 6, completa) | `Cart`/`CartItem` — primer agregado con coleccion hija encapsulada (`Items` via backing field). `GET/POST/PUT/DELETE /api/cart[/items/{productId}]`, anonimo. Sin precio en `CartItem` (se lee en vivo). `CartCleanupBackgroundService` (F6-04) borra los expirados periodicamente — verificado en vivo |
-| **Orders** | ? Implementado (Fase 7) | `Order`/`OrderItem`, `ICheckoutWriter` (writer angosto, sin SQL crudo). `POST /api/checkout` + `GET /api/orders[/{id}]` + `PATCH /api/orders/{id}/status`. Verificado en vivo, incluye test de concurrencia real (25 checkouts simultaneos) que encontro y corrigio un bug (C-45) |
-| **Payments** | ? Implementado (Fase 8, webhook completo) | `Payment`, `PaymentEventProcessed` (idempotencia), `IPaymentWebhookWriter`. `POST /api/payments/webhooks/{provider}` publico. Verificado en vivo: captura, fallo, reenvio idempotente, firma invalida, `ProviderPaymentId` desconocido. Solo faltan los adapters reales Bancard/PagoPar (F8-03/04) — bloqueados sin su documentacion de API |
+| **Orders** | ? Implementado (Fase 7 + F8-07) | `Order`/`OrderItem`, `ICheckoutWriter` (writer angosto, sin SQL crudo). `POST /api/checkout` + `GET /api/orders[/{id}]` + `PATCH /api/orders/{id}/status` + `GET /api/public/orders/{id}` (publico, autorizado por `AccessToken` — F8-07, ver seccion propia). Verificado en vivo, incluye test de concurrencia real (25 checkouts simultaneos) que encontro y corrigio un bug (C-45) |
+| **Payments** | ? Implementado (Fase 8, webhook + F8-07 completos) | `Payment`, `PaymentEventProcessed` (idempotencia), `IPaymentWebhookWriter`. `POST /api/payments/webhooks/{provider}` publico. Verificado en vivo: captura, fallo, reenvio idempotente, firma invalida, `ProviderPaymentId` desconocido. Solo faltan los adapters reales Bancard/PagoPar (F8-03/04) — bloqueados sin su documentacion de API |
 | **Observabilidad** | ? Parcial (F9-01/F9-03 completos, F9-02 pendiente) | Serilog (sinks Console+File, enrichers TenantId/UserId/CorrelationId) y `AuditLog` (4 operaciones instrumentadas). OpenTelemetry (F9-02) no encarado — explicitamente fuera de alcance por decision del usuario el 2026-07-26 |
 
 ---
@@ -56,6 +57,29 @@ esperar) y borra los carritos vencidos de todos los tenants con `ICartRepository
 (`ExecuteDeleteAsync` — DELETE en bloque, sin cargar entidades; `CartItems` cascadea a nivel de
 constraint DB). Corre en su propio scope de DI, sin `TenantId` fijado — el Global Query Filter queda
 transparente, mismo mecanismo que el webhook de pagos.
+
+---
+
+## Consulta publica del pedido (F8-07)
+
+`GET /api/public/orders/{id}` (`EShopy.Api/Controllers/Public/OrdersController.cs`, `AllowAnonymous`)
+alimenta la pantalla de confirmacion de compra del storefront: tras pagar, el provider redirige en una
+navegacion nueva donde el `CheckoutResultDto` que estaba en memoria ya se perdio.
+
+Autoriza por **posesion de un secreto**, no por sesion (el comprador es anonimo en el MVP):
+`Order.AccessToken` se genera en `Order.Create` (`RandomNumberGenerator.GetBytes(32)` en Base64Url,
+43 chars) y se devuelve **una sola vez**, en la respuesta del checkout. El frontend lo manda despues
+en el header `X-Order-Token`.
+
+- `PublicOrderDto`: numero, estado, total, moneda, items, fecha. **Sin** email/nombre/direccion del
+  comprador ni el propio token.
+- `Order.MatchesAccessToken` compara en tiempo constante (`CryptographicOperations.FixedTimeEquals`).
+- Token que no coincide → 404, no 403 (un 403 permitiria enumerar pedidos del tenant). Sin header → 400.
+- Migracion `20260906184703_AddOrderAccessToken`, columna con default `''`: los pedidos anteriores no
+  son consultables por esta via (`MatchesAccessToken` rechaza el token vacio de los dos lados).
+- **Ojo D-05** (detectado verificando esto en vivo): `createdAtUtc` vuelve sin sufijo `Z`, asi que el
+  frontend en JS lo lee como hora local. Es un problema preexistente de todos los DTOs con fechas, ver
+  BACKLOG.md.
 
 ---
 
@@ -216,9 +240,15 @@ Estado: **? Completo**
 
 | Suite | Tests | Estado |
 |---|---|---|
-| `EShopy.Tests.Unit` | 115 tests | ? (incluye `CartTests`, `CartValidatorTests`, `TenantTests`, `SubscriptionTests`, `TenantValidatorTests`, `InviteTenantUserCommandValidatorTests`, `SubdomainResolverTests`, `OrderTests`, `PaymentTests`, `CheckoutCommandValidatorTests`) |
-| `EShopy.Tests.Integration` | 22 tests | ? Incluye seguridad 401/403/200, onboarding, invitacion de usuarios, flujo de carrito, flujo de checkout end-to-end (`CheckoutFlowTests`) y flujo de webhook de pagos (`PaymentWebhookFlowTests`: captura, fallo, idempotencia, firma invalida, payment no encontrado). Sin paralelizar (`AssemblyInfo.cs`), ver `testing/test-strategy.md` |
+| `EShopy.Tests.Unit` | 122 tests | ? (incluye `CartTests`, `CartValidatorTests`, `TenantTests`, `SubscriptionTests`, `TenantValidatorTests`, `InviteTenantUserCommandValidatorTests`, `SubdomainResolverTests`, `OrderTests` (incl. generacion y comparacion de `AccessToken`), `PaymentTests`, `CheckoutCommandValidatorTests`) |
+| `EShopy.Tests.Integration` | 28 tests | ? Incluye seguridad 401/403/200, onboarding, invitacion de usuarios, flujo de carrito, flujo de checkout end-to-end (`CheckoutFlowTests`), flujo de webhook de pagos (`PaymentWebhookFlowTests`: captura, fallo, idempotencia, firma invalida, payment no encontrado) y consulta publica del pedido (`PublicOrderFlowTests`: token correcto, sin filtrar datos personales, token equivocado, token de otro pedido, sin header, pedido inexistente). Sin paralelizar (`AssemblyInfo.cs`), ver `testing/test-strategy.md` |
 
+> F8-07 se verifico ademas en vivo el 2026-09-06 contra SQL Server real: checkout → consulta publica
+> con el token correcto (200), token invalido (404), prefijo del token real (404), sin header (400),
+> pedido legacy sin `AccessToken` (404), endpoint admin sigue en 401 sin auth, y el flujo completo
+> webhook `Captured` → la consulta publica pasa a `Paid`. Sin bugs nuevos; el token no aparece en los
+> logs de Serilog.
+>
 > B-02, F6-04, F9-01 y F9-03 (bootstrap de DB, limpieza de carritos, Serilog, AuditLog) no tienen
 > tests automatizados dedicados todavia — se verificaron en vivo contra Docker (ver nota de smoke
 > test al inicio del doc). `InMemoryAuditLogger` ya existe como fake registrado en
@@ -266,6 +296,7 @@ Soporte de tests:
   - `20260726191023_AddOrdersPaymentsTenantCounters`
   - `20260726195952_AddPaymentEventsProcessed`
   - `20260726205016_AddAuditLogs`
+  - `20260906184703_AddOrderAccessToken`
 - Si se elimina manualmente una tabla, EF no la recrea al iniciar mientras `__EFMigrationsHistory` siga marcado; ejecutar `dotnet ef database update` con historial consistente. B-02 (resuelto): la API ahora detecta esto al arrancar en Development y falla con un mensaje claro en vez de un error de SQL confuso mas adelante.
 
 ---

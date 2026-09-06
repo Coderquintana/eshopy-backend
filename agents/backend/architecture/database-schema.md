@@ -142,6 +142,7 @@ enforced a nivel DB: no puede haber mas de una suscripcion no cancelada por tena
 | `TotalAmount` | `decimal(18,2)` | No | CHECK >= 0. Snapshot, suma de OrderItems |
 | `CurrencyCode` | `char(3)` | No | — |
 | `CartToken` | `nvarchar(100)` | No | — |
+| `AccessToken` | `nvarchar(64)` | No | Secreto de consulta publica del pedido (F8-07). Base64Url de 32 bytes = 43 chars. Default `''` para los pedidos anteriores a la migracion `AddOrderAccessToken` |
 | `PaymentId` | `uniqueidentifier` | Sí | **Sin FK enforced** a proposito — la FK real vive en `Payments.OrderId` (ver tabla abajo). Un FK real en ambas direcciones seria circular, EF no puede resolver el orden de insercion en un solo `SaveChangesAsync` |
 | + columnas AppEntity | | | — |
 
