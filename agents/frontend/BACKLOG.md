@@ -1,5 +1,13 @@
 # Frontend BACKLOG — Kanban
 
+> ⚠️ **SUPERADO — no editar.** Este es el plan escrito ANTES de que existiera el
+> frontend. La fuente de verdad vive en el repo del front:
+> `../eshopy-frontend/agents/` (BACKLOG.md, CURRENT_STATE.md, GOVERNANCE.md).
+> Aquel doc corrige cuatro errores de este (dirección visual, audiencias,
+> contratos de API, contraste del theming) — ver su sección "Correcciones al
+> plan original". Se conserva solo como registro histórico.
+
+
 > Estado al 2026-02-19. El frontend no está iniciado. Todo es pendiente.
 
 ---
