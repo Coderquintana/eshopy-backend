@@ -625,7 +625,47 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"buyerEmail\": \"buyer@email.com\",\n  \"buyerName\": \"Buyer\",\n  \"shippingAddress\": null\n}"
+            },
+            "description": "Convierte el carrito de {{cartToken}} en un pedido e inicia el pago.\nLa respuesta trae `accessToken`: es la UNICA vez que el backend lo devuelve. Guardarlo antes de redirigir a `paymentUrl` — es lo que autoriza `Get Public Order` cuando el comprador vuelve del provider.\nEl script de test de este request ya lo persiste en `orderId` y `orderAccessToken`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.environment.set('orderId', body.orderId);",
+                  "  pm.environment.set('orderAccessToken', body.accessToken);",
+                  "}"
+                ]
+              }
             }
+          ]
+        },
+        {
+          "name": "Get Public Order (Buyer)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Order-Token",
+                "value": "{{orderAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/public/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "public",
+                "orders",
+                "{{orderId}}"
+              ]
+            },
+            "description": "Consulta publica del pedido para la pantalla de confirmacion de compra (comprador anonimo).\nAutoriza por posesion del `accessToken` que devolvio el checkout (header `X-Order-Token`), no por sesion.\nDevuelve una vista reducida: numero, estado, total, moneda e items — SIN email, nombre ni direccion del comprador.\nUn token que no coincide responde 404 (no 403) para no permitir enumerar pedidos del tenant; sin el header, 400."
           }
         },
         {
