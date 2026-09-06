@@ -77,6 +77,55 @@ public sealed class OrderTests
     order.OrderNumber.Should().Be(2);
   }
 
+  // ─── AccessToken ──────────────────────────────────────────────────────────
+
+  [Fact]
+  public void Create_ShouldGenerateAUniqueAccessTokenPerOrder()
+  {
+    var first = Order.Create(TenantId, StoreId, "buyer@eshopy.local", "Buyer Name", null,
+      "cart-token", OneItem(), "PYG", Now);
+    var second = Order.Create(TenantId, StoreId, "buyer@eshopy.local", "Buyer Name", null,
+      "cart-token", OneItem(), "PYG", Now);
+
+    first.AccessToken.Should().NotBeNullOrWhiteSpace();
+    first.AccessToken.Should().NotBe(second.AccessToken);
+    // Base64Url de 32 bytes: 43 chars, sin padding ni caracteres que haya que escapar en una URL.
+    first.AccessToken.Should().HaveLength(43);
+    first.AccessToken.Should().MatchRegex("^[A-Za-z0-9_-]+$");
+  }
+
+  [Fact]
+  public void MatchesAccessToken_WithTheGeneratedToken_ShouldBeTrue()
+  {
+    var order = Order.Create(TenantId, StoreId, "buyer@eshopy.local", "Buyer Name", null,
+      "cart-token", OneItem(), "PYG", Now);
+
+    order.MatchesAccessToken(order.AccessToken).Should().BeTrue();
+  }
+
+  [Theory]
+  [InlineData(null)]
+  [InlineData("")]
+  [InlineData("   ")]
+  [InlineData("otro-token")]
+  public void MatchesAccessToken_WithAnythingElse_ShouldBeFalse(string? candidate)
+  {
+    var order = Order.Create(TenantId, StoreId, "buyer@eshopy.local", "Buyer Name", null,
+      "cart-token", OneItem(), "PYG", Now);
+
+    order.MatchesAccessToken(candidate).Should().BeFalse();
+  }
+
+  [Fact]
+  public void MatchesAccessToken_WithAPrefixOfTheRealToken_ShouldBeFalse()
+  {
+    // FixedTimeEquals con longitudes distintas devuelve false, no lanza.
+    var order = Order.Create(TenantId, StoreId, "buyer@eshopy.local", "Buyer Name", null,
+      "cart-token", OneItem(), "PYG", Now);
+
+    order.MatchesAccessToken(order.AccessToken[..10]).Should().BeFalse();
+  }
+
   // ─── ChangeStatus ─────────────────────────────────────────────────────────
 
   [Theory]
