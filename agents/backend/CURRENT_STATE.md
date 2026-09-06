@@ -38,6 +38,26 @@
 
 ---
 
+## PK generadas por el dominio (C-54)
+
+`OnModelCreating` marca **toda PK `Guid` como `ValueGenerated.Never`**: las asignan las factories del
+dominio (`Guid.NewGuid()`), no SQL Server.
+
+No es cosmetico. Sin eso EF las trata como store-generated y usa el valor de la PK para decidir el
+estado de una entidad que descubre dentro de un agregado ya trackeado: PK en default = `Added`, PK
+con valor = `Modified`. Como el dominio ya asigno el Guid, EF emitia `UPDATE` en vez de `INSERT` para
+un hijo nuevo — 0 filas afectadas, `DbUpdateConcurrencyException`, 409 al usuario.
+
+Bug real encontrado el 2026-09-06 desde el frontend: agregar un **segundo producto distinto** a un
+carrito ya existente fallaba siempre. Invisible en tres lugares a la vez: no aparece al crear el
+carrito (`Add` marca todo el grafo `Added`), ni al acumular el mismo producto (muta un item ya
+trackeado), ni en los tests de integracion (usan `InMemoryCartRepository`).
+
+**Regla para agregados nuevos**: cualquier entidad hija que se agregue a un agregado ya persistido
+depende de esta convencion. `Order`/`OrderItem` tenia el mismo problema latente sin manifestarse.
+
+---
+
 ## Bootstrap de DB (B-02)
 
 `Program.cs`, en Development, corre `db.Database.GetPendingMigrations()` (sincrono) al arrancar y

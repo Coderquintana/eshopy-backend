@@ -45,6 +45,22 @@ public sealed class CartFlowTests : IClassFixture<SecurityWebApplicationFactory>
     var cartAfterSecondAdd = await secondAddResponse.Content.ReadFromJsonAsync<CartDto>();
     cartAfterSecondAdd!.Items.Should().ContainSingle(i => i.Quantity == 5);
 
+    // Un producto DISTINTO en un carrito que ya existe: item nuevo en un agregado ya persistido.
+    // Este caso faltaba y es el que rompio en vivo (C-54): EF emitia UPDATE en vez de INSERT y
+    // devolvia 409. Con el repositorio in-memory pasa igual — lo que lo atrapa de verdad es el
+    // smoke test contra SQL Server real.
+    var otherProduct = await CreateActiveProductAsync(client, "cart-flow-second-product");
+    client.DefaultRequestHeaders.Authorization = null;
+
+    var addOtherResponse = await client.PostAsJsonAsync("/api/cart/items", new AddCartItemCommand(otherProduct.Id, 1));
+    addOtherResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+    var cartWithTwo = await addOtherResponse.Content.ReadFromJsonAsync<CartDto>();
+    cartWithTwo!.Items.Should().HaveCount(2);
+    cartWithTwo.Items.Should().Contain(i => i.ProductId == otherProduct.Id && i.Quantity == 1);
+
+    // Se quita el segundo para que el resto del flujo siga viendo un solo item.
+    await client.DeleteAsync($"/api/cart/items/{otherProduct.Id}");
+
     var updateResponse = await client.PutAsJsonAsync(
       $"/api/cart/items/{product.Id}", new UpdateCartItemQuantityCommand(product.Id, 10));
     updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);

@@ -9,6 +9,7 @@ using EShopy.Domain.Subscriptions;
 using EShopy.Domain.Tenants;
 using EShopy.Infrastructure.Persistence.Configurations;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace EShopy.Infrastructure.Persistence;
 
@@ -49,6 +50,30 @@ public sealed class EShopyDbContext(
     modelBuilder.ApplyConfiguration(new TenantCounterConfiguration());
     modelBuilder.ApplyConfiguration(new PaymentEventProcessedConfiguration());
     modelBuilder.ApplyConfiguration(new AuditLogConfiguration());
+
+    // Las PK Guid las asigna el DOMINIO (todas las factories hacen Guid.NewGuid()), no la base.
+    //
+    // Sin esto EF las trata como store-generated, y entonces usa el valor de la PK para decidir el
+    // estado de una entidad que descubre dentro de un agregado ya trackeado: PK en default = Added,
+    // PK con valor = Modified. Como el dominio ya asigno el Guid, EF concluye que la fila existe y
+    // emite UPDATE en vez de INSERT, que afecta 0 filas y termina en DbUpdateConcurrencyException.
+    //
+    // Bug real (2026-09-06): agregar un SEGUNDO producto distinto a un carrito ya persistido
+    // respondia 409. No se veia al crear el carrito (db.Carts.Add marca el grafo entero como Added)
+    // ni al acumular el mismo producto (muta un CartItem ya trackeado). Order/OrderItem tenia la
+    // misma bomba sin estallar: hoy los pedidos se crean completos en el checkout y nunca reciben un
+    // item despues. Por eso la convencion va global y no en CartItemConfiguration.
+    foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+    {
+      var key = entityType.FindPrimaryKey();
+      if (key is null) continue;
+
+      foreach (var property in key.Properties)
+      {
+        if (property.ClrType == typeof(Guid))
+          property.ValueGenerated = ValueGenerated.Never;
+      }
+    }
 
     // Global Query Filter de multi-tenancy.
     // Si TenantId no está disponible (e.g. migrations en design-time, o rutas SUPERADMIN excluidas
