@@ -1,3 +1,4 @@
+using EShopy.Api.Common.Json;
 using EShopy.Api.DevTools;
 using EShopy.Api.Middlewares;
 using EShopy.Application.Common.Context;
@@ -28,7 +29,13 @@ try
     .Enrich.FromLogContext());
 
   // Controllers + Swagger
-  builder.Services.AddControllers();
+  // D-05: convertidores globales de fecha, no tocar cada DTO uno por uno — ver UtcDateTimeConverter.
+  builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+      options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());
+      options.JsonSerializerOptions.Converters.Add(new UtcNullableDateTimeConverter());
+    });
   builder.Services.AddEndpointsApiExplorer();
   builder.Services.AddSwaggerGen(options =>
   {
