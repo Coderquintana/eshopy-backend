@@ -48,6 +48,11 @@ Prospect                Backend                 Keycloak         Payment Provide
     │ Owner inicia sesión en Admin Panel              │                    │
 ```
 
+> **Atajo de desarrollo**: este flujo entero pasa por Keycloak (Paso 1 crea el owner ahi antes de
+> escribir el Tenant). Para probar el storefront sin levantar el realm, `dotnet run --project
+> EShopy.Api -- seed` crea un tenant activo con productos directo por EF, sin onboarding real. Ver
+> "Probar el storefront sin Keycloak" en el README del repo.
+
 ## Paso 1: Solicitud de onboarding
 
 **Endpoint**: `POST /api/onboarding/tenants` (excluido de TenantResolutionMiddleware)

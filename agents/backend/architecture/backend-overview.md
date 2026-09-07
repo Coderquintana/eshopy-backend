@@ -89,6 +89,13 @@ options.AddPolicy("UsersManage",   p => p.RequireClaim("permissions", "users.man
 // Pendiente: StoreWrite, TenantsRead, PaymentsRead, BillingManage
 ```
 
+> `AddJwtBearer` no contacta a Keycloak al arrancar: el `ConfigurationManager` interno resuelve la
+> metadata OIDC (`Authority`) recien al validar el primer token, de forma perezosa. Por eso la API
+> arranca y sirve todo lo que no tiene `[Authorize]` (el catalogo publico del storefront, `/health`)
+> aunque Keycloak este caido o no exista. Solo un request a un endpoint protegido dispara el intento
+> de conexion y falla ahi. Util para probar el storefront en dev sin levantar el realm — ver
+> "Probar el storefront sin Keycloak" en el README.
+
 ## BaseApiController
 
 ```csharp

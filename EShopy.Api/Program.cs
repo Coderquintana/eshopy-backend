@@ -1,3 +1,4 @@
+using EShopy.Api.DevTools;
 using EShopy.Api.Middlewares;
 using EShopy.Application.Common.Context;
 using EShopy.Infrastructure;
@@ -161,6 +162,21 @@ try
         $"Faltan migraciones por aplicar: {string.Join(", ", pendingMigrations)}. " +
         "Correr: dotnet ef database update --project EShopy.Infrastructure --startup-project EShopy.Api");
     }
+  }
+
+  // Modo seed: siembra un tenant de prueba y termina sin levantar el servidor HTTP. Solo en
+  // Development a proposito — es un atajo para probar el storefront sin Keycloak, no una feature
+  // de producto. Ver DevSeeder para el porque (el onboarding real necesita Keycloak).
+  // GetAwaiter().GetResult(), no "await": mismo motivo que el chequeo de migraciones de arriba, un
+  // Main de nivel superior async rompe WebApplicationFactory en los tests de integracion.
+  if (args.Contains("seed"))
+  {
+    if (!app.Environment.IsDevelopment())
+      throw new InvalidOperationException("El modo seed solo esta disponible en Development.");
+
+    var subdomain = args.SkipWhile(a => a != "seed").Skip(1).FirstOrDefault() ?? DevSeeder.DefaultSubdomain;
+    DevSeeder.RunAsync(app.Services, subdomain).GetAwaiter().GetResult();
+    return;
   }
 
   // Pipeline

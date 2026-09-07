@@ -62,6 +62,26 @@ dotnet run --project EShopy.Api
 Guia completa de Keycloak (roles, usuarios de prueba, troubleshooting de audience):
 [`docs/keycloak-setup.md`](docs/keycloak-setup.md).
 
+### Probar el storefront sin Keycloak
+
+El unico camino documentado para crear un tenant (`POST /api/onboarding/tenants`) crea el owner en
+Keycloak antes de escribir en la base — sin el realm arriba, ese endpoint no sirve. La API en si
+**no** necesita Keycloak para arrancar ni para servir el catalogo publico: el `JwtBearer` resuelve
+su metadata OIDC recien al validar un token, no al iniciar. Para un smoke test rapido del storefront
+(catalogo, carrito, checkout) sin levantar el realm:
+
+```bash
+# Crea un tenant activo con 3 productos de prueba, subdominio "smoketest2"
+# (el mismo Host que reescribe projects/storefront/proxy.conf.json en el frontend)
+dotnet run --project EShopy.Api -- seed
+
+# O con otro subdominio:
+dotnet run --project EShopy.Api -- seed mitienda
+```
+
+Solo corre en `Development` y es idempotente: si el subdominio ya existe, no hace nada. Ver
+`EShopy.Api/DevTools/DevSeeder.cs`.
+
 Coleccion Postman lista para importar: [`Documentation/Postman/`](Documentation/Postman/).
 
 ## Tests
@@ -93,3 +113,10 @@ dotnet test
 - Todo cambio de arquitectura no trivial se documenta en `GOVERNANCE.md` antes de repetirse.
 
 Detalle completo: [`agents/backend/GOVERNANCE.md`](agents/backend/GOVERNANCE.md).
+
+## Ramas
+
+Desarrollo en `develop`. `main` se promueve desde `develop` (fast-forward) al cerrar una fase, no en
+cada commit — no asumas que `main` tiene lo ultimo. Si algo que deberia estar andando no aparece
+(un campo en una respuesta, un endpoint, una migracion), confirmar primero contra que rama se esta
+trabajando antes de asumir un bug.
