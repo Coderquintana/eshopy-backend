@@ -66,6 +66,7 @@ _(vacio)_
 | # | Tarea | Descripcion |
 |---|---|---|
 | F9-02 | OpenTelemetry traces y metricas | Instrumentacion basica — mas util cuando haya mas de un servicio corriendo; hoy es un unico backend monolitico. Explicitamente no encarado el 2026-07-26 (decision del usuario) |
+| F9-04 | `POST /api/client-errors` | Ver decision completa en `GOVERNANCE.md` ("Reporte de errores del frontend"). Resumen: endpoint anonimo, solo loguea via Serilog (sin tabla nueva), consumido por el `GlobalErrorHandler` de Admin/Storefront (D-02 de ese repo). Truncar mensaje/stack por ser publico sin auth. Decision de esta etapa, no definitiva — revisar Sentry cuando este endpoint casero deje de alcanzar |
 
 ### Fase 10 - Testing
 | # | Tarea | Descripcion |
