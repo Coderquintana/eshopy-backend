@@ -10,6 +10,12 @@ public sealed class EfTenantUserRepository(EShopyDbContext db) : ITenantUserRepo
   public Task<bool> EmailExistsForTenantAsync(Guid tenantId, string email, CancellationToken ct)
     => db.TenantUsers.AsNoTracking().AnyAsync(u => u.TenantId == tenantId && u.Email == email, ct);
 
+  public Task<TenantUser?> GetByKeycloakUserIdAsync(Guid tenantId, string keycloakUserId, CancellationToken ct)
+    => db.TenantUsers.AsNoTracking()
+      .FirstOrDefaultAsync(
+        u => u.TenantId == tenantId && u.KeycloakUserId == keycloakUserId && u.IsActive,
+        ct);
+
   public async Task<IReadOnlyList<TenantUser>> GetByTenantIdAsync(Guid tenantId, CancellationToken ct)
     => await db.TenantUsers.AsNoTracking()
       .Where(u => u.TenantId == tenantId)

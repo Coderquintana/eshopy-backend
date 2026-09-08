@@ -39,6 +39,7 @@
 |---|---|
 | **JWT Bearer único** | Keycloak OIDC. No implementar auth propio |
 | **Claim `permissions`** | Policies basadas en claim `permissions` (ej. `catalog.write`). No en roles directos |
+| **Membresía de tenant separada de permisos** | `TenantMembershipMiddleware`, después de autenticación/autorización, valida en `TenantUsers` que el `sub` autenticado tenga una membresía activa en el tenant resuelto por Host. Esta consulta es la autoridad de **a qué tenant pertenece** la persona; las policies por claim `permissions` siguen siendo la autoridad de **qué puede hacer**. `ESHOPY_SUPERADMIN` queda exceptuado porque cruza tenants por diseño. No confiar en un claim `tenant_id` para esta decisión: sin la consulta a la base, un permiso válido se podría reutilizar contra cualquier tenant cambiando el Host |
 | **Endpoints admin siempre autorizados** | Todo endpoint bajo `/api/` (no `/api/public/`) requiere `[Authorize(Policy=...)]` |
 | **Buyer anónimo MVP** | Storefront anónimo en MVP. Auth de buyer es post-MVP |
 

@@ -227,6 +227,8 @@ try
   app.UseAuthentication();
   app.UseAuthorization();
 
+  app.UseMiddleware<TenantMembershipMiddleware>();
+
   // Despues de auth a proposito: enriquece los logs que emiten controllers/handlers (donde vive
   // casi toda la logica de negocio) con UserId/Email ya resueltos — antes de UseAuthentication()
   // el ClaimsPrincipal todavia no esta poblado.
