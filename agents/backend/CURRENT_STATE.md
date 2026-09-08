@@ -1,7 +1,8 @@
 # CURRENT_STATE - Estado actual del codigo
 
-> Actualizado 2026-09-06: F8-07 (consulta publica del pedido) implementado y verificado en vivo — ver
-> seccion propia abajo. Antes de eso: reauditado 2026-07-26 contra HEAD. Sesion larga: revision de arquitectura + modulo Tenants/Store completo + infra Docker Compose + Carrito + Pedidos + webhook de Pagos (solo faltan los adapters reales Bancard/PagoPar) + bootstrap de DB (B-02) + limpieza de carritos (F6-04) + Serilog/AuditLog (F9-01/F9-03).
+> Actualizado 2026-09-08: membresia de tenant exigida para todo usuario autenticado no SUPERADMIN.
+> Antes de eso: F8-07 (consulta publica del pedido) implementado y verificado en vivo el 2026-09-06,
+> y reauditado 2026-07-26 contra HEAD. Sesion larga: revision de arquitectura + modulo Tenants/Store completo + infra Docker Compose + Carrito + Pedidos + webhook de Pagos (solo faltan los adapters reales Bancard/PagoPar) + bootstrap de DB (B-02) + limpieza de carritos (F6-04) + Serilog/AuditLog (F9-01/F9-03).
 > Refleja el codigo real, no la documentacion ideal. Ver [BACKLOG.md](BACKLOG.md) seccion "DEUDA TECNICA / ARQUITECTURA" para gaps de escalabilidad no listados en la tabla de abajo.
 >
 > **Smoke test real (2026-07-26)**: `docker compose up -d` + migraciones + API corriendo, flujo
@@ -26,7 +27,7 @@
 | Modulo | Estado | Notas |
 |---|---|---|
 | **Core / Infraestructura base** | ? Implementado | Middleware, BaseApiController, ErrorResponse, Result<T>, Global Query Filter, mapeo de `DbUpdateConcurrencyException`/violacion de indice unico a 409. Sin capa de Unit of Work generica a proposito (ver nota D-01 en BACKLOG.md); writers angostos (`ITenantOnboardingWriter`/`ITenantActivationWriter`/`ICheckoutWriter`/`IPaymentWebhookWriter`) para los flujos que escriben varios agregados en una transaccion. Bootstrap de DB en Development (B-02): chequea migraciones pendientes al arrancar. Logging via Serilog (F9-01, ver seccion propia abajo). Auditoria de operaciones sensibles via `AuditLog`/`IAuditLogger` (F9-03, ver seccion propia abajo) |
-| **Auth (Keycloak/JWT)** | ? Completo (Fase 2) | OIDC + RBAC por claim `permissions` + CORS por ambiente + headers de seguridad + UserContextAccessor |
+| **Auth (Keycloak/JWT)** | ? Completo (Fase 2) | OIDC + RBAC por claim `permissions` + pertenencia activa en `TenantUsers` para el tenant resuelto por Host (`TenantMembershipMiddleware`) + CORS por ambiente + headers de seguridad + UserContextAccessor |
 | **Products (Catalog)** | ? Completo (MVP) | CQRS + Result<T> + SQL pagination + StoreId + transiciones validadas. `ProductService` ya no existe (reemplazado por Commands/Queries). FK reales a Tenants/Stores. RowVersion configurado pero no cableado end-to-end (ver D-03) |
 | **Store** | ? Implementado | `EfStoreService`/`IStoreRepository` reales (reemplazan `InMemoryStoreService`). `GET/PUT /api/store` funcionando. `CurrencyCode` inmutable tras creacion |
 | **Tenants** | ? Implementado (Fase 4) | `Tenant`/`TenantUser` reales, maquina de estados completa. `EfTenantResolver` reemplaza el diccionario en memoria (cache ~60s por subdominio). Onboarding (`POST /api/onboarding/tenants`) crea Tenant+Store+Owner(Keycloak)+Subscription atomicamente. Activacion manual SUPERADMIN implementada; webhook de pago sigue en Fase 8. Invitar Admin/Staff (`GET/POST /api/admin/users`) implementado y verificado en vivo (F4-05) |
@@ -174,6 +175,18 @@ Estado: **? Completo**
   - `EShopy.Application/Common/Identity/UserContext.cs`
   - `EShopy.Infrastructure/Identity/UserContextAccessor.cs`
 
+### Membresia de tenant (C-57)
+
+`TenantMembershipMiddleware` corre despues de `UseAuthorization()`. Para cada usuario autenticado y
+tenant resuelto por Host, busca una fila activa de `TenantUsers` por `(TenantId, KeycloakUserId)`,
+usando el claim `sub` como `KeycloakUserId`. Sin esa membresia responde 403 aunque el token tenga el
+claim `permissions` requerido por el endpoint.
+
+Son controles complementarios: la membresia decide **en que tenant** puede operar una persona y las
+policies deciden **que puede hacer**. El middleware no usa `UserContext.TenantId` ni requiere que
+Keycloak emita `tenant_id`. Omite requests anonimas, rutas sin `TenantContext` (onboarding,
+`/api/admin/tenants/*`, webhooks) y usuarios `ESHOPY_SUPERADMIN`, que cruzan tenants por diseño.
+
 ---
 
 ## Products (modulo de referencia)
@@ -261,7 +274,7 @@ Estado: **? Completo**
 | Suite | Tests | Estado |
 |---|---|---|
 | `EShopy.Tests.Unit` | 122 tests | ? (incluye `CartTests`, `CartValidatorTests`, `TenantTests`, `SubscriptionTests`, `TenantValidatorTests`, `InviteTenantUserCommandValidatorTests`, `SubdomainResolverTests`, `OrderTests` (incl. generacion y comparacion de `AccessToken`), `PaymentTests`, `CheckoutCommandValidatorTests`) |
-| `EShopy.Tests.Integration` | 28 tests | ? Incluye seguridad 401/403/200, onboarding, invitacion de usuarios, flujo de carrito, flujo de checkout end-to-end (`CheckoutFlowTests`), flujo de webhook de pagos (`PaymentWebhookFlowTests`: captura, fallo, idempotencia, firma invalida, payment no encontrado) y consulta publica del pedido (`PublicOrderFlowTests`: token correcto, sin filtrar datos personales, token equivocado, token de otro pedido, sin header, pedido inexistente). Sin paralelizar (`AssemblyInfo.cs`), ver `testing/test-strategy.md` |
+| `EShopy.Tests.Integration` | 36 tests | ? Incluye seguridad 401/403/200 y membresia multi-tenant (Owner/Admin/Staff, SUPERADMIN, membresia inactiva y rutas anonimas), onboarding, invitacion de usuarios, flujo de carrito, flujo de checkout end-to-end (`CheckoutFlowTests`), flujo de webhook de pagos (`PaymentWebhookFlowTests`: captura, fallo, idempotencia, firma invalida, payment no encontrado) y consulta publica del pedido (`PublicOrderFlowTests`: token correcto, sin filtrar datos personales, token equivocado, token de otro pedido, sin header, pedido inexistente). Sin paralelizar (`AssemblyInfo.cs`), ver `testing/test-strategy.md` |
 
 > F8-07 se verifico ademas en vivo el 2026-09-06 contra SQL Server real: checkout → consulta publica
 > con el token correcto (200), token invalido (404), prefijo del token real (404), sin header (400),
@@ -280,6 +293,10 @@ Nuevos tests de seguridad:
   - `GetProducts_WithoutToken_Returns401`
   - `GetProducts_WithCatalogReadPermission_Returns200`
   - `CreateProduct_WithoutCatalogWritePermission_Returns403`
+- `EShopy.Tests.Integration/Security/TenantMembershipTests.cs`
+  - Owner/Admin/Staff no pueden reutilizar permisos en el Host de otro tenant.
+  - El Owner conserva el camino feliz en su propio tenant; SUPERADMIN puede cruzar tenants.
+  - Una membresia inactiva se rechaza y `GET /api/store`/`POST /api/checkout` anonimos no cambian.
 
 Flujo de onboarding:
 
@@ -326,7 +343,7 @@ Soporte de tests:
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost,1433;Database=EShopy.Dev;User Id=sa;Password=EShopy_Dev_2026!;TrustServerCertificate=True;"
+    "DefaultConnection": "Server=localhost,1433;Database=EShopy.Dev;User Id=sa;Password=<SQL_SERVER_DEV_PASSWORD>;TrustServerCertificate=True;"
   },
   "Keycloak": {
     "Authority": "http://localhost:8080/realms/eshopy",
@@ -337,7 +354,7 @@ Soporte de tests:
     "ValidateLifetime": true,
     "AdminBaseUrl": "http://localhost:8080",
     "AdminClientId": "eshopy-api",
-    "AdminClientSecret": "eshopy-api-secret"
+    "AdminClientSecret": "<KEYCLOAK_ADMIN_CLIENT_SECRET>"
   },
   "Cors": {
     "AllowedOrigins": [
