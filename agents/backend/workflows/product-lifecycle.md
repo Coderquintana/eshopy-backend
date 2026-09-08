@@ -66,12 +66,12 @@
 
 ```
 1. Admin envía { "status": 1 } (Active)
-2. ProductService:
+2. ChangeProductStatusCommandHandler:
    a. GetByIdAsync — si no existe → NOT_FOUND (404)
    b. Valida transición: Draft → Active ✅
    c. product.ChangeStatus(Active, utcNow)
    d. IProductRepository.UpdateAsync(product)
-   e. AuditLog del cambio de estado (pendiente implementar)
+   e. AuditLog `Product.ChangeStatus` con `Draft -> Active`
 3. Retorna ProductAdminDto con Status = "Active"
 ```
 
@@ -85,11 +85,12 @@
 
 ```
 1. Admin envía { "status": 2 } (Archived)
-2. ProductService:
+2. ChangeProductStatusCommandHandler:
    a. GetByIdAsync — si no existe → NOT_FOUND (404)
    b. Valida transición: Active → Archived ✅
    c. product.ChangeStatus(Archived, utcNow)
    d. UpdateAsync
+   e. AuditLog `Product.ChangeStatus` con `Active -> Archived`
 3. Retorna ProductAdminDto con Status = "Archived"
 ```
 
@@ -104,6 +105,7 @@ Igual que Flujo 2 pero el producto parte desde `Archived`.
 1. Admin envía { "status": 1 } (Active)
 2. Valida transición: Archived → Active ✅
 3. product.ChangeStatus(Active, utcNow) + UpdateAsync
+4. AuditLog `Product.ChangeStatus` con `Archived -> Active`
 ```
 
 ## Flujo 5: Actualizar detalles de producto
@@ -114,12 +116,13 @@ Igual que Flujo 2 pero el producto parte desde `Archived`.
 
 ```
 1. Admin envía UpdateProductRequest (name, description, price, stockOnHand, sku?)
-2. ProductService:
+2. UpdateProductCommandHandler:
    a. GetByIdAsync — si no existe → NOT_FOUND (404)
    b. Si Sku cambia: verificar unicidad en tenant
-   c. product.UpdateDetails(...)
-   d. UpdateAsync
-   e. AuditLog si el precio cambió (pendiente implementar)
+   c. Guardar el precio anterior
+   d. product.UpdateDetails(...)
+   e. UpdateAsync
+   f. Si el precio cambió: AuditLog `Product.ChangePrice` con `OldPrice -> NewPrice`
 3. Retorna ProductAdminDto actualizado
 ```
 
@@ -141,10 +144,12 @@ private static bool IsValidTransition(ProductStatus from, ProductStatus to)
 }
 ```
 
-## Eventos auditables (AuditLog — pendiente Fase 9)
+## Eventos auditables
 
-| Evento | Trigger | Campos a loguear |
-|---|---|---|
-| ProductCreated | Create() | TenantId, ProductId, Slug, Sku, Price |
-| ProductPriceChanged | UpdateDetails() con precio distinto | ProductId, OldPrice, NewPrice |
-| ProductStatusChanged | ChangeStatus() | ProductId, OldStatus, NewStatus |
+| Evento | Trigger | Campos a loguear | Estado |
+|---|---|---|---|
+| ProductCreated | Create() | TenantId, ProductId, Slug, Sku, Price | ⏳ Pendiente; fuera de F5-03 |
+| ProductPriceChanged | UpdateDetails() con precio distinto | ProductId, OldPrice, NewPrice | ✅ Implementado como `Product.ChangePrice` |
+| ProductStatusChanged | ChangeStatus() | ProductId, OldStatus, NewStatus | ✅ Implementado como `Product.ChangeStatus` |
+
+La auditoría es best-effort: `IAuditLogger` absorbe sus propios errores y nunca revierte una operación de negocio ya persistida.

@@ -1,3 +1,4 @@
+using EShopy.Application.Common.Audit;
 using EShopy.Application.Common.Context;
 using EShopy.Application.Products.Contracts;
 using EShopy.Domain.Common.Errors;
@@ -9,7 +10,8 @@ namespace EShopy.Application.Products.Commands;
 
 public sealed class UpdateProductCommandHandler(
   IProductRepository repository,
-  TenantContext tenantContext)
+  TenantContext tenantContext,
+  IAuditLogger auditLogger)
 {
   private readonly UpdateProductCommandValidator _validator = new();
 
@@ -42,8 +44,16 @@ public sealed class UpdateProductCommandHandler(
     // 5. Aplicar cambios
     try
     {
+      var previousPrice = product.Price;
       product.UpdateDetails(command.Name, command.Description, command.Price, command.StockOnHand, normalizedSku, DateTime.UtcNow);
       await repository.UpdateAsync(product, ct);
+
+      if (previousPrice != product.Price)
+      {
+        var details = FormattableString.Invariant($"{previousPrice} -> {product.Price}");
+        await auditLogger.LogAsync(tenantId, "Product.ChangePrice", "Product", product.Id, details, ct);
+      }
+
       return Result<ProductAdminDto>.Ok(ProductMappings.ToAdminDto(product));
     }
     catch (DomainException ex)

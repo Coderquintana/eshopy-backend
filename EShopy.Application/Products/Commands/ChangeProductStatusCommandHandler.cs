@@ -1,3 +1,4 @@
+using EShopy.Application.Common.Audit;
 using EShopy.Application.Common.Context;
 using EShopy.Application.Products.Contracts;
 using EShopy.Domain.Common.Errors;
@@ -8,7 +9,8 @@ namespace EShopy.Application.Products.Commands;
 
 public sealed class ChangeProductStatusCommandHandler(
   IProductRepository repository,
-  TenantContext tenantContext)
+  TenantContext tenantContext,
+  IAuditLogger auditLogger)
 {
   private readonly ChangeProductStatusCommandValidator _validator = new();
 
@@ -36,8 +38,10 @@ public sealed class ChangeProductStatusCommandHandler(
     // 4. Aplicar transición (DomainException si la transición no es válida)
     try
     {
+      var previousStatus = product.Status;
       product.ChangeStatus(command.Status, DateTime.UtcNow);
       await repository.UpdateAsync(product, ct);
+      await auditLogger.LogAsync(tenantId, "Product.ChangeStatus", "Product", product.Id, $"{previousStatus} -> {product.Status}", ct);
       return Result<ProductAdminDto>.Ok(ProductMappings.ToAdminDto(product));
     }
     catch (DomainException ex)
