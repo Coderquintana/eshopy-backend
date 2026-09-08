@@ -19,8 +19,8 @@ internal sealed class InMemoryTenantsState
 
     Tenants[tenantA.Id] = tenantA;
     Tenants[tenantB.Id] = tenantB;
-    StoresByTenantId[tenantA.Id] = Store.CreateDefault(tenantA.Id, "Tenant A Store", createdAtUtc);
-    StoresByTenantId[tenantB.Id] = Store.CreateDefault(tenantB.Id, "Tenant B Store", createdAtUtc);
+    StoresByTenantId[tenantA.Id] = Store.CreateDefault(tenantA.Id, "Tenant A Store", "PYG", createdAtUtc);
+    StoresByTenantId[tenantB.Id] = Store.CreateDefault(tenantB.Id, "Tenant B Store", "PYG", createdAtUtc);
 
     TenantUsers.Add(TenantUser.Create(
       tenantA.Id,

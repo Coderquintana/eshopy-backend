@@ -200,9 +200,13 @@ Subscription (PendingActivation). Excluido de `TenantResolutionMiddleware` (no r
   "businessName": "Mi Tienda SRL",
   "ownerEmail": "dueño@mitienda.com",
   "ownerName": "Juan Pérez",
-  "plan": "basic"
+  "plan": "basic",
+  "currencyCode": "PYG"
 }
 ```
+
+> `currencyCode` es obligatorio, acepta exactamente 3 letras (forma ISO 4217) y se normaliza a
+> mayúsculas. En esta etapa se valida el formato, no contra una lista fija de monedas.
 
 **Response 201:**
 ```json
@@ -514,7 +518,7 @@ body:
   "eventType": "Captured"
 }
 ```
-> `eventType`: `"Captured"` \| `"Failed"` \| `"Refunded"` (case-sensitive).
+> `eventType`: `"Captured"` | `"Failed"` | `"Refunded"` (case-sensitive).
 
 **Response 200:** vacio — tanto para un evento nuevo procesado como para uno ya procesado (idempotencia).
 

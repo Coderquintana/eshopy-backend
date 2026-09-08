@@ -39,5 +39,11 @@ public sealed class CreateTenantCommandValidator : AbstractValidator<CreateTenan
       .WithMessage("El plan es obligatorio.")
       .Must(plan => AllowedPlans.Contains(plan.ToLowerInvariant()))
       .WithMessage("El plan debe ser 'basic', 'gold' o 'diamond'.");
+
+    RuleFor(x => x.CurrencyCode)
+      .NotEmpty()
+      .WithMessage("La moneda de la tienda es obligatoria.")
+      .Matches(@"^[A-Za-z]{3}$")
+      .WithMessage("La moneda de la tienda debe tener exactamente 3 letras (ISO 4217).");
   }
 }

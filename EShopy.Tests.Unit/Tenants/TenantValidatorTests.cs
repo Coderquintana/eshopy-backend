@@ -12,7 +12,7 @@ public sealed class TenantValidatorTests
   public void CreateValidator_ShouldFailWhenSubdomainTooShort()
   {
     var validator = new CreateTenantCommandValidator();
-    var command = new CreateTenantCommand("ab", "Mi Tienda SRL", "owner@mitienda.com", "Juan Perez", "basic");
+    var command = new CreateTenantCommand("ab", "Mi Tienda SRL", "owner@mitienda.com", "Juan Perez", "basic", "PYG");
 
     var result = validator.Validate(command);
 
@@ -24,7 +24,7 @@ public sealed class TenantValidatorTests
   public void CreateValidator_ShouldFailWhenSubdomainHasInvalidChars()
   {
     var validator = new CreateTenantCommandValidator();
-    var command = new CreateTenantCommand("mi tienda!", "Mi Tienda SRL", "owner@mitienda.com", "Juan Perez", "basic");
+    var command = new CreateTenantCommand("mi tienda!", "Mi Tienda SRL", "owner@mitienda.com", "Juan Perez", "basic", "PYG");
 
     var result = validator.Validate(command);
 
@@ -36,7 +36,7 @@ public sealed class TenantValidatorTests
   public void CreateValidator_ShouldFailWhenOwnerEmailInvalid()
   {
     var validator = new CreateTenantCommandValidator();
-    var command = new CreateTenantCommand("mitienda", "Mi Tienda SRL", "not-an-email", "Juan Perez", "basic");
+    var command = new CreateTenantCommand("mitienda", "Mi Tienda SRL", "not-an-email", "Juan Perez", "basic", "PYG");
 
     var result = validator.Validate(command);
 
@@ -48,7 +48,7 @@ public sealed class TenantValidatorTests
   public void CreateValidator_ShouldFailWhenPlanUnknown()
   {
     var validator = new CreateTenantCommandValidator();
-    var command = new CreateTenantCommand("mitienda", "Mi Tienda SRL", "owner@mitienda.com", "Juan Perez", "enterprise");
+    var command = new CreateTenantCommand("mitienda", "Mi Tienda SRL", "owner@mitienda.com", "Juan Perez", "enterprise", "PYG");
 
     var result = validator.Validate(command);
 
@@ -56,11 +56,27 @@ public sealed class TenantValidatorTests
     result.Errors.Should().Contain(e => e.PropertyName == nameof(CreateTenantCommand.Plan));
   }
 
+  [Theory]
+  [InlineData("")]
+  [InlineData("US")]
+  [InlineData("US1")]
+  [InlineData("EURO")]
+  public void CreateValidator_ShouldFailWhenCurrencyCodeInvalid(string currencyCode)
+  {
+    var validator = new CreateTenantCommandValidator();
+    var command = new CreateTenantCommand("mitienda", "Mi Tienda SRL", "owner@mitienda.com", "Juan Perez", "basic", currencyCode);
+
+    var result = validator.Validate(command);
+
+    result.IsValid.Should().BeFalse();
+    result.Errors.Should().Contain(e => e.PropertyName == nameof(CreateTenantCommand.CurrencyCode));
+  }
+
   [Fact]
   public void CreateValidator_ShouldPassWithValidData()
   {
     var validator = new CreateTenantCommandValidator();
-    var command = new CreateTenantCommand("mitienda", "Mi Tienda SRL", "owner@mitienda.com", "Juan Perez", "basic");
+    var command = new CreateTenantCommand("mitienda", "Mi Tienda SRL", "owner@mitienda.com", "Juan Perez", "basic", "usd");
 
     var result = validator.Validate(command);
 

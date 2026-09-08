@@ -60,6 +60,29 @@ public sealed class TenantTests
       .Where(ex => ex.Code == ErrorCodes.ValidationError);
   }
 
+  // ─── Store ────────────────────────────────────────────────────────────────
+
+  [Fact]
+  public void StoreCreateDefault_ShouldNormalizeCurrencyCode()
+  {
+    var store = Store.CreateDefault(Guid.NewGuid(), "Mi Tienda", "usd", DateTime.UtcNow);
+
+    store.CurrencyCode.Should().Be("USD");
+  }
+
+  [Theory]
+  [InlineData("")]
+  [InlineData("US")]
+  [InlineData("US1")]
+  [InlineData("EURO")]
+  public void StoreCreateDefault_WithInvalidCurrencyCode_ShouldThrowDomainException(string currencyCode)
+  {
+    var act = () => Store.CreateDefault(Guid.NewGuid(), "Mi Tienda", currencyCode, DateTime.UtcNow);
+
+    act.Should().Throw<DomainException>()
+      .Where(ex => ex.Code == ErrorCodes.ValidationError);
+  }
+
   // ─── ChangeStatus ─────────────────────────────────────────────────────────
 
   [Fact]

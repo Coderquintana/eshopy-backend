@@ -5,4 +5,5 @@ public sealed record CreateTenantCommand(
   string BusinessName,
   string OwnerEmail,
   string OwnerName,
-  string Plan);
+  string Plan,
+  string CurrencyCode);

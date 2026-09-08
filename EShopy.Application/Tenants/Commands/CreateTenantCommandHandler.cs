@@ -42,11 +42,11 @@ public sealed class CreateTenantCommandHandler(
     {
       var now = DateTime.UtcNow;
       var tenant = Tenant.Create(normalizedSubdomain, command.BusinessName, plan, now);
-      var store = Store.CreateDefault(tenant.Id, command.BusinessName, now);
+      var store = Store.CreateDefault(tenant.Id, command.BusinessName, command.CurrencyCode, now);
       var owner = TenantUser.Create(tenant.Id, keycloakUserId, command.OwnerEmail, command.OwnerName, TenantUserRole.Owner, now);
 
-      var (price, currencyCode) = PlanPricing.For(plan);
-      var subscription = Subscription.CreatePending(tenant.Id, plan, price, currencyCode, now);
+      var (price, subscriptionCurrencyCode) = PlanPricing.For(plan);
+      var subscription = Subscription.CreatePending(tenant.Id, plan, price, subscriptionCurrencyCode, now);
 
       await onboardingWriter.CreateAsync(tenant, store, owner, subscription, ct);
       return Result<TenantOnboardingResultDto>.Ok(TenantMappings.ToOnboardingResultDto(tenant));

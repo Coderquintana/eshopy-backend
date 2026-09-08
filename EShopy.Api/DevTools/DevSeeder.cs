@@ -40,7 +40,7 @@ public static class DevSeeder
     tenant.ChangeStatus(TenantStatus.Active, now);
     db.Tenants.Add(tenant);
 
-    var store = Store.CreateDefault(tenant.Id, "Smoke Test Store", now);
+    var store = Store.CreateDefault(tenant.Id, "Smoke Test Store", "PYG", now);
     store.UpdateProfile(store.Name, store.Timezone,
       primaryColor: "#0f766e", logoUrl: null, backgroundColor: null,
       description: "Tienda de prueba para desarrollo local.", now);

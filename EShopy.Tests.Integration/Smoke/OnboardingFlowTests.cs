@@ -28,7 +28,8 @@ public sealed class OnboardingFlowTests : IClassFixture<SecurityWebApplicationFa
       BusinessName: "Mi Tienda SRL",
       OwnerEmail: "owner@mitienda.com",
       OwnerName: "Juan Perez",
-      Plan: "basic");
+      Plan: "basic",
+      CurrencyCode: "usd");
 
     var createResponse = await client.PostAsJsonAsync("/api/onboarding/tenants", createCommand);
     createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -60,7 +61,7 @@ public sealed class OnboardingFlowTests : IClassFixture<SecurityWebApplicationFa
   {
     var client = _factory.CreateClient();
     var subdomain = $"dup-{Guid.NewGuid():N}"[..15];
-    var command = new CreateTenantCommand(subdomain, "Mi Tienda SRL", "owner@mitienda.com", "Juan Perez", "basic");
+    var command = new CreateTenantCommand(subdomain, "Mi Tienda SRL", "owner@mitienda.com", "Juan Perez", "basic", "PYG");
 
     var first = await client.PostAsJsonAsync("/api/onboarding/tenants", command);
     first.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -68,5 +69,22 @@ public sealed class OnboardingFlowTests : IClassFixture<SecurityWebApplicationFa
     var second = await client.PostAsJsonAsync("/api/onboarding/tenants", command with { OwnerEmail = "otro@mitienda.com" });
 
     second.StatusCode.Should().Be(HttpStatusCode.Conflict);
+  }
+
+  [Fact]
+  public async Task CreateTenant_WithInvalidCurrencyCode_ShouldReturn400()
+  {
+    var client = _factory.CreateClient();
+    var command = new CreateTenantCommand(
+      $"currency-{Guid.NewGuid():N}"[..18],
+      "Mi Tienda SRL",
+      "owner@mitienda.com",
+      "Juan Perez",
+      "basic",
+      "US1");
+
+    var response = await client.PostAsJsonAsync("/api/onboarding/tenants", command);
+
+    response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
   }
 }

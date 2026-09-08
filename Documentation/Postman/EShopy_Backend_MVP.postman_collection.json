@@ -187,7 +187,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"subdomain\": \"mitienda\",\n  \"businessName\": \"Mi Tienda SRL\",\n  \"ownerEmail\": \"owner@mitienda.com\",\n  \"ownerName\": \"Juan Perez\",\n  \"plan\": \"basic\"\n}"
+              "raw": "{\n  \"subdomain\": \"mitienda\",\n  \"businessName\": \"Mi Tienda SRL\",\n  \"ownerEmail\": \"owner@mitienda.com\",\n  \"ownerName\": \"Juan Perez\",\n  \"plan\": \"basic\",\n  \"currencyCode\": \"PYG\"\n}"
             }
           },
           "event": [

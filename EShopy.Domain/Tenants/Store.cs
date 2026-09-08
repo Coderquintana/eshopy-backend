@@ -31,7 +31,11 @@ public sealed class Store : AppEntity
 
   public string Name { get; private set; }
 
-  /// <summary>Moneda del store. Inmutable tras la creacion: cambiarla rompe precios ya registrados en Products/Orders.</summary>
+  /// <summary>
+  /// Moneda del store. Inmutable tras la creacion: cambiarla rompe precios ya registrados en Products/Orders.
+  /// Hoy representa tanto la moneda de exhibicion como la de liquidacion; si esos conceptos se separan,
+  /// este es el punto de dominio a dividir.
+  /// </summary>
   public string CurrencyCode { get; private set; }
   public string Timezone { get; private set; }
   public string? PrimaryColor { get; private set; }
@@ -39,14 +43,15 @@ public sealed class Store : AppEntity
   public string? BackgroundColor { get; private set; }
   public string? Description { get; private set; }
 
-  public static Store CreateDefault(Guid tenantId, string name, DateTime createdAtUtc)
+  public static Store CreateDefault(Guid tenantId, string name, string currencyCode, DateTime createdAtUtc)
   {
     EnsureName(name);
+    EnsureCurrencyCode(currencyCode);
 
     return new Store(Guid.NewGuid(),
       tenantId,
       name.Trim(),
-      currencyCode: "PYG",
+      currencyCode.Trim().ToUpperInvariant(),
       timezone: "America/Asuncion",
       primaryColor: null,
       logoUrl: null,
@@ -83,6 +88,16 @@ public sealed class Store : AppEntity
 
     if (name.Trim().Length > 200)
       throw new DomainException(ErrorCodes.ValidationError, "El nombre de la tienda no puede exceder 200 caracteres.");
+  }
+
+  private static void EnsureCurrencyCode(string currencyCode)
+  {
+    if (string.IsNullOrWhiteSpace(currencyCode))
+      throw new DomainException(ErrorCodes.ValidationError, "La moneda de la tienda es obligatoria.");
+
+    var normalized = currencyCode.Trim();
+    if (normalized.Length != 3 || normalized.Any(character => !char.IsAsciiLetter(character)))
+      throw new DomainException(ErrorCodes.ValidationError, "La moneda de la tienda debe tener exactamente 3 letras (ISO 4217).");
   }
 
   private static void EnsureTimezone(string timezone)
