@@ -10,7 +10,9 @@ Los dos repos son hermanos y **no** hay un repo padre:
 - `eshopy-backend/` — API .NET 10 (este repo)
 - `eshopy-frontend/` — workspace Angular 22 (`projects/storefront`, `projects/admin`)
 
-Verificado end-to-end el 2026-09-06.
+Verificado end-to-end el 2026-09-08. Storefront (catálogo, carrito, checkout) y Admin
+(login Keycloak, productos, pedidos) completos — ver `agents/backend/CURRENT_STATE.md`
+para el estado real antes de asumir que algo falta.
 
 ---
 
@@ -56,8 +58,9 @@ until curl -s -o /dev/null -w "%{http_code}" http://localhost:5080/health | grep
 cd ../eshopy-frontend && npx ng serve storefront --port 4200
 ```
 
-El Admin es `--port 4201`, pero hoy es **solo el scaffold de Angular** (sin pantallas):
-no vale la pena levantarlo salvo que se este trabajando en el.
+El Admin es `--port 4201`, con login Keycloak (PKCE), productos y pedidos ya
+funcionando. Necesita su propio proxy (`projects/admin/proxy.conf.json`, mismo
+truco de Host que el storefront) y Keycloak realmente arriba para el login real.
 
 ---
 
@@ -80,9 +83,11 @@ MSYS_NO_PATHCONV=1 docker exec eshopy-sqlserver /opt/mssql-tools18/bin/sqlcmd \
   -Q "SET NOCOUNT ON; SELECT Subdomain, Status FROM Tenants;"
 ```
 
-`Status = 1` es Active. Si no hay ninguno, crearlo con `POST /api/onboarding/tenants` +
-activacion SUPERADMIN (ver `docs/keycloak-setup.md`). Para probar otra tienda, cambiar el
-Host en `proxy.conf.json`.
+`Status = 1` es Active. Si no hay ninguno, el atajo mas rapido sin Keycloak es
+`dotnet run --project EShopy.Api -- seed` (crea `smoketest2`, activo, con 3 productos —
+ver "Probar el storefront sin Keycloak" en el README del repo). El camino real pasa por
+`POST /api/onboarding/tenants` + activacion SUPERADMIN (ver `docs/keycloak-setup.md`).
+Para probar otra tienda, cambiar el Host en `proxy.conf.json`.
 
 > `MSYS_NO_PATHCONV=1` es necesario en Git Bash: sin eso convierte `/opt/mssql-tools18/...`
 > a una ruta de Windows y `docker exec` falla con "no such file or directory".
@@ -118,10 +123,10 @@ PowerShell abre el del usuario).
 |---|---|
 | `/productos` | Catalogo publico (raiz por redirect) |
 | `/productos/:slug` | Detalle de producto |
+| `/carrito`, `/checkout`, `/checkout/exito` | Flujo de compra completo |
+| `/login`, `/productos`, `/pedidos`, `/pedidos/:id` (Admin, :4201) | Panel de la dueña |
 
-**No existe todavia** el flujo de compra en el front: no hay `/carrito`, `/checkout` ni la
-pantalla de confirmacion — aunque los tres esten completos en el backend. Ver LB-17 en
-`../eshopy-frontend/agents/frontend/BACKLOG.md`.
+Estado real y que falta: `../eshopy-frontend/agents/BACKLOG.md`.
 
 ## Bajar todo
 

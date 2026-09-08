@@ -4,6 +4,11 @@
 > **Fecha:** 2026-02-17  
 > **Propósito:** Resumen ejecutivo y guía de navegación de toda la documentación técnica de eShopy (SaaS e-commerce multi-tenant para Paraguay)
 
+> ⚠️ **Desactualizado.** Es anterior a Tenants, Carts, Orders, Payments y todo
+> el Admin — describe el plan, no el código real. Para el estado actual, ver
+> `agents/backend/CURRENT_STATE.md`. Queda como narrativa histórica del plan
+> inicial (los 11 documentos originales están en `Documentation Copy/`).
+
 ---
 
 ## 📚 Índice de Documentos
