@@ -17,6 +17,7 @@ _(vacio — B-02 resuelto, ver COMPLETADAS C-50)_
 | # | Tarea | Modulo | Detalle |
 |---|---|---|---|
 | D-03 | RowVersion sin uso end-to-end | Catalog | `Product.RowVersion` esta configurado como concurrency token en EF (`IsRowVersion()`) pero los comandos `Update`/`ChangeStatus` no reciben la version del cliente — se relee fresco antes de aplicar el cambio, asi que el token no previene lost updates en la practica. Decidir: cablearlo via DTO/If-Match, o sacarlo para no dar falsa sensacion de seguridad. **Pendiente, no implementado** |
+| D-06 | Sin forma de entregar el primer acceso a un tenant nuevo | Tenants/Identity | `KeycloakAdminClient.CreateUserAsync` crea el usuario con password aleatoria y `temporary: true` (fuerza a cambiarla en el primer login), pero esa password no se devuelve en la respuesta del onboarding ni se envia por ningun lado — hoy no hay forma de que la owner reciba su primer acceso. El realm tiene `resetPasswordAllowed: true` pero **sin SMTP configurado**, asi que el link de "olvide mi contraseña" de Keycloak tampoco funciona. Encontrado el 2026-09-08 evaluando el camino a un deploy de prueba (ver `eshopy-frontend/agents/DEPLOY-READINESS.md`, item DEPLOY-02). Fix rapido propuesto: devolver el link/password temporal en la respuesta de `POST /api/onboarding/tenants` para entregarlo a mano; el fix completo (SMTP + `execute-actions-email` nativo de Keycloak) es trabajo de infraestructura aparte, no antes de tener gente ajena dandose de alta sola. **Pendiente, no implementado** |
 
 **D-01 (Unit of Work explicito) — descartado a proposito (2026-07-26).** Se implemento (`IUnitOfWork`/`EfUnitOfWork`) y se revirtio en la misma sesion: `EShopyDbContext` ya ES un Unit of Work (trackea cambios, `SaveChangesAsync` los confirma atomicamente); envolverlo en otra interfaz es abstraer una abstraccion sin necesidad real todavia, porque solo existe un repositorio (`IProductRepository`). El repositorio vuelve a llamar `SaveChangesAsync` directamente. **Revisar esta decision cuando exista una operacion que necesite escribir a traves de mas de un repositorio en una sola transaccion** (candidato: Checkout en F7-02 — stock + order + payment).
 
@@ -24,7 +25,9 @@ _(vacio — B-02 resuelto, ver COMPLETADAS C-50)_
 
 ## EN PROGRESO
 
-_(vacio)_
+| # | Tarea | Detalle |
+|---|---|---|
+| — | Atar el usuario autenticado al tenant resuelto por Host | Hoy los permisos (`catalog.write`, etc.) son globales al usuario, sin cruce contra `TenantUsers` — alguien con acceso a un tenant podria escribir en otro apuntando el Host. Encontrado en revision de arquitectura el 2026-09-08, mandado al agente el mismo dia. Ver `agents/backend/GOVERNANCE.md` (se documenta ahi al cerrarse) |
 
 ---
 
