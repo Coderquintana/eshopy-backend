@@ -1,7 +1,7 @@
 # BACKLOG - Kanban eShopy Backend
 
 > Estado al 2026-09-08 (aislamiento de membresia por tenant, ver C-57). Antes de eso, al 2026-09-07 (D-05, ver C-56), 2026-09-06 (F8-07, ver C-53) y 2026-07-26. Reauditado contra el codigo real en HEAD (d531917, ultimo commit 2026-02-20) tras una pausa de ~5 meses.
-> B-01, B-03 y P-01 estaban marcados como pendientes pero el codigo ya los resuelve desde el commit `35cebe9` (refactor CQRS) — se movieron a COMPLETADAS. Se agrego una seccion nueva de deuda tecnica de arquitectura (D-xx) que no estaba trackeada; D-02 y D-04 se implementaron y verificaron el mismo dia. D-01 (Unit of Work explicito) se probo y se revirtio a proposito — ver nota debajo de la tabla.
+> B-01, B-03 y P-01 estaban marcados como pendientes pero el codigo ya los resuelve desde el commit `35cebe9` (refactor CQRS) — se movieron a COMPLETADAS. Se agrego una seccion nueva de deuda tecnica de arquitectura (D-xx) que no estaba trackeada; D-02 y D-04 se implementaron y verificaron el mismo dia. D-01 (Unit of Work explicito) se probo y se revirtio a proposito — ver nota debajo de la tabla. F5-01 tenia el mismo problema que B-01/B-03/P-01 (ya resuelto por el mismo commit) — se saco de PROXIMAS, ver C-26.
 > Mismo dia: Fase 4 completa (Tenants + Store + Subscription minima) con infra Docker Compose para SQL Server + Keycloak. Ver C-31 en adelante. Fase 6 (Carrito, C-43), Fase 7 (Pedidos + minimo de Pagos, C-44..C-46) y el webhook de Fase 8 (C-47..C-49) tambien completados el mismo dia; C-45 documenta un bug real de concurrencia encontrado y corregido en vivo. Fase 8 solo le falta a los adapters reales de Bancard/PagoPar (F8-03/04), bloqueados sin su documentacion de API. B-02, F6-04 y F9-01/F9-03 (C-50..C-52) tambien cerrados el mismo dia — C-52 documenta dos bugs reales mas encontrados en el smoke test (paralelizacion de tests con WebApplicationFactory, orden de middleware para enrichment de logs).
 
 ---
@@ -46,10 +46,9 @@ _(vacio)_
 ### Fase 5 - Catalog (refactor)
 | # | Tarea | Descripcion |
 |---|---|---|
-| F5-01 | Commands separados de Queries | Separar ProductService en Command/Query handlers |
 | F5-02 | CurrencyCode desde Store | Eliminar "PYG" hardcodeado |
 | F5-03 | Auditoria de cambios (precio/estado) | La tabla `AuditLogs` y `IAuditLogger` ya existen (F9-03, C-52) — falta solo instrumentar `ChangeProductStatusCommandHandler`/`UpdateProductCommandHandler` con una llamada a `LogAsync`, no requiere trabajo de infraestructura nuevo |
-| F5-04 | ProductImages (metadata imagenes) | Entidad + endpoint de imagenes |
+| F5-04 | Foto de producto | Ver decisión completa en `GOVERNANCE.md` ("Imagen de producto: storage y mejora desacoplados"). Resumen: `Product.ImageUrl` (nullable, sin tabla `ProductImages` — una sola imagen por producto). Subida vía `IProductImageStorage` (Application), implementado hoy por `LocalDiskImageStorage` (disco local, sin volumen persistente todavía — no hace falta mientras el backend no corra en contenedor). Validar server-side: JPEG/PNG/WebP, máx. 5MB, redimensionar a máx. 1200px de lado mayor al subir; sin miniatura server-side separada, el catálogo la muestra chica vía CSS. Puerto `IImageEnhancer` declarado pero sin implementar, para una futura mejora con IA (feature premium) — deliberadamente desacoplado del storage. Migrar a blob storage (Azure/S3) y resolver volumen persistente queda pendiente junto con DEPLOY-01 (hosting real de producción), no antes |
 
 ### Fase 6 - Carrito — completa (incl. F6-04), ver COMPLETADAS
 

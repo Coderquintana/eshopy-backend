@@ -28,7 +28,7 @@ Todas las tablas multi-tenant incluyen estas columnas:
 | `Subscriptions` | Multi-tenant | ✅ Migración creada |
 | `TenantUsers` | Multi-tenant | ✅ Migración creada |
 | `Products` | Multi-tenant | ✅ Migración creada |
-| `ProductImages` | Multi-tenant | ❌ Pendiente |
+| `ProductImages` (descartada, ver F5-04) | — | ❌ No se va a crear esta tabla. `Product.ImageUrl` (nullable, columna directa) cubre el alcance actual: una imagen por producto, sin orden ni galería. Reabrir esta tabla si algún día se necesita más de una imagen por producto |
 | `Carts` | Multi-tenant | ✅ Migración creada (`AddCartsCartItems`) |
 | `CartItems` | Multi-tenant (no AppEntity) | ✅ Migración creada |
 | `Orders` | Multi-tenant | ✅ Migración creada (`AddOrdersPaymentsTenantCounters`) |
