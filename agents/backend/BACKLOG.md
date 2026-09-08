@@ -26,6 +26,7 @@ ya esté cerrada — ver `eshopy-frontend/agents/BACKLOG.md`):
 3. **D-03** (RowVersion cableado de verdad) — habilita **GAP-04** del frontend.
 4. **F9-04** (`POST /api/client-errors`) — habilita **D-02** del frontend.
 5. **F5-04** (foto de producto) — el más grande de los cinco, habilita **GAP-02** del frontend.
+6. **D-07** (Products a lote) — nueva, agregada 2026-09-08. No es urgente para nada de lo anterior, pero se resuelve antes de tocar tooling/CI (ver la nota de la tabla de deuda técnica, más abajo) y antes de que el frontend arranque cualquier pantalla de carga masiva.
 
 Un solo prompt por ítem, como se viene haciendo — no mandar dos a la vez.
 
@@ -37,12 +38,20 @@ _(vacio — B-02 resuelto, ver COMPLETADAS C-50)_
 
 ---
 
-## DEUDA TECNICA / ARQUITECTURA (no bloqueante hoy, pero se paga caro si se ignora antes de Fase 6-8)
+## DEUDA TECNICA / ARQUITECTURA — fase de estabilización antes de CI/CD
+
+Esta tabla es la fase de estabilización: no bloquea el trabajo de hoy, pero
+se paga caro si se ignora antes de invertir en CI/CD para este repo (no
+existe ese ítem todavía en este backlog) — automatizar tests/deploy contra
+un contrato que ya sabemos que va a cambiar (D-07) es repetir el trabajo
+dos veces. No bloquea el tooling del frontend (L-05/L-07 en su `BACKLOG.md`),
+que es independiente de esto.
 
 | # | Tarea | Modulo | Detalle |
 |---|---|---|---|
 | D-03 | RowVersion sin uso end-to-end | Catalog | Decisión ya tomada (2026-09-08, ver `GOVERNANCE.md` "Concurrencia optimista end-to-end en Products"): cablearlo de verdad, no sacarlo. `Product.RowVersion` va a viajar en `ProductAdminDto` y volver en `UpdateProductCommand`/`ChangeProductStatusCommand`, comparado contra el valor real de la fila antes de escribir — hoy el handler relee fresco antes de aplicar el cambio, así que el token nunca protege nada entre dos requests distintos. Con Usuarios/roles por tenant ya definido como parte del producto (no hipotético), dos personas editando el mismo catálogo es un caso real, no un edge case a ignorar por el tamaño actual del sistema. **Pendiente, no implementado** |
 | D-06 | Sin forma de entregar el primer acceso a un tenant nuevo | Tenants/Identity | `KeycloakAdminClient.CreateUserAsync` crea el usuario con password aleatoria y `temporary: true` (fuerza a cambiarla en el primer login), pero esa password no se devuelve en la respuesta del onboarding ni se envia por ningun lado — hoy no hay forma de que la owner reciba su primer acceso. El realm tiene `resetPasswordAllowed: true` pero **sin SMTP configurado**, asi que el link de "olvide mi contraseña" de Keycloak tampoco funciona. Encontrado el 2026-09-08 evaluando el camino a un deploy de prueba (ver `eshopy-frontend/agents/DEPLOY-READINESS.md`, item DEPLOY-02). Fix rapido propuesto: devolver el link/password temporal en la respuesta de `POST /api/onboarding/tenants` para entregarlo a mano; el fix completo (SMTP + `execute-actions-email` nativo de Keycloak) es trabajo de infraestructura aparte, no antes de tener gente ajena dandose de alta sola. **Pendiente, no implementado** |
+| D-07 | Endpoints de Products nacieron singulares, no en lote | Catalog | Viola la regla nueva de `GOVERNANCE.md` ("Mutaciones en lote por defecto", 2026-09-08): `POST /api/products` crea uno, `PUT /api/products/{id}` actualiza uno, no existe `DELETE`. Se escribieron antes de que la regla existiera. Migrar a `POST /api/products/batch` (o equivalente) que reciba una lista — un alta individual sigue siendo un lote de 1, sin caso especial. Motivo concreto, no estético: el negocio va a necesitar cargar catálogos grandes (una tienda no carga 300 productos de a uno), y ese día el contrato tiene que estar listo sin romper a los clientes que ya llaman la forma singular — por eso conviene resolverlo ahora, con poco código en juego, y no después con Products en producción. El frontend no tiene que cambiar nada todavía: sigue llamando con lote de 1 hasta que exista una función real de carga masiva (ver `eshopy-frontend/agents/BACKLOG.md`, "Más adelante"). **Pendiente, no implementado** — bloquea empezar cualquier carga masiva del lado del frontend |
 
 **D-01 (Unit of Work explicito) — descartado a proposito (2026-07-26).** Se implemento (`IUnitOfWork`/`EfUnitOfWork`) y se revirtio en la misma sesion: `EShopyDbContext` ya ES un Unit of Work (trackea cambios, `SaveChangesAsync` los confirma atomicamente); envolverlo en otra interfaz es abstraer una abstraccion sin necesidad real todavia, porque solo existe un repositorio (`IProductRepository`). El repositorio vuelve a llamar `SaveChangesAsync` directamente. **Revisar esta decision cuando exista una operacion que necesite escribir a traves de mas de un repositorio en una sola transaccion** (candidato: Checkout en F7-02 — stock + order + payment).
 
