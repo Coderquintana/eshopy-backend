@@ -60,7 +60,6 @@ _(vacio)_
 | # | Tarea | Descripcion |
 |---|---|---|
 | F3-02 | Interceptor TenantId + fechas UTC | Impedir SaveChanges si TenantId ausente; setear timestamps UTC |
-| F3-04 | Migracion completa con todas las tablas | Orders, Payments, Carts (Tenants/Stores/Subscriptions ya migrados, ver Fase 4) |
 
 ### Fase 4 - Tenants (Onboarding) — completa, ver COMPLETADAS C-31..C-37, C-41
 | # | Tarea | Descripcion |
