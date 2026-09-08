@@ -6,6 +6,31 @@
 
 ---
 
+## Sesión 2026-09-08 (segunda mitad): solo definición, nada implementado
+
+Después de cerrar C-57 (aislamiento por tenant), el resto de esta sesión fue
+puro trabajo de definición con el usuario — decidir el alcance exacto de
+cada ítem pendiente **antes** de mandarle un prompt al agente de código, para
+que no tenga que inventar ninguna decisión de arquitectura por su cuenta. No
+se tocó una sola línea de código de producción; todo lo de abajo son
+decisiones ya cerradas, documentadas en detalle en `GOVERNANCE.md` y en la
+fila correspondiente de cada tarea, listas para implementar tal cual están
+escritas.
+
+**Orden sugerido para la próxima sesión** (de menor a mayor, y respetando
+que algunas tareas del frontend dependen de que su contraparte del backend
+ya esté cerrada — ver `eshopy-frontend/agents/BACKLOG.md`):
+
+1. **F5-02** (moneda configurable, no `"PYG"` hardcodeado) — chico, sin dependencias.
+2. **F5-03** (auditoría de precio/estado) — chico, mecánico, sin dependencias.
+3. **D-03** (RowVersion cableado de verdad) — habilita **GAP-04** del frontend.
+4. **F9-04** (`POST /api/client-errors`) — habilita **D-02** del frontend.
+5. **F5-04** (foto de producto) — el más grande de los cinco, habilita **GAP-02** del frontend.
+
+Un solo prompt por ítem, como se viene haciendo — no mandar dos a la vez.
+
+---
+
 ## BLOQUEANTE (debe resolverse antes de continuar)
 
 _(vacio — B-02 resuelto, ver COMPLETADAS C-50)_
