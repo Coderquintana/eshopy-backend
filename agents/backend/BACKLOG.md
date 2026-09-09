@@ -1,6 +1,6 @@
 # BACKLOG - Kanban eShopy Backend
 
-> Estado al 2026-09-08 (D-03 concurrencia optimista end-to-end en Products completada, ver C-60). Antes de eso: F5-03 (C-59), F5-02 (C-58), aislamiento de membresia por tenant (C-57), D-05 (C-56), F8-07 (C-53) y la rea auditoria del 2026-07-26.
+> Estado al 2026-09-09 (F9-04 reporte de errores del frontend completado, ver C-61). Antes de eso: D-03 concurrencia optimista end-to-end en Products (C-60), F5-03 (C-59), F5-02 (C-58), aislamiento de membresia por tenant (C-57), D-05 (C-56), F8-07 (C-53) y la rea auditoria del 2026-07-26.
 > B-01, B-03 y P-01 estaban marcados como pendientes pero el codigo ya los resuelve desde el commit `35cebe9` (refactor CQRS) — se movieron a COMPLETADAS. Se agrego una seccion nueva de deuda tecnica de arquitectura (D-xx) que no estaba trackeada; D-02 y D-04 se implementaron y verificaron el mismo dia. D-01 (Unit of Work explicito) se probo y se revirtio a proposito — ver nota debajo de la tabla. F5-01 tenia el mismo problema que B-01/B-03/P-01 (ya resuelto por el mismo commit) — se saco de PROXIMAS, ver C-26.
 > Mismo dia: Fase 4 completa (Tenants + Store + Subscription minima) con infra Docker Compose para SQL Server + Keycloak. Ver C-31 en adelante. Fase 6 (Carrito, C-43), Fase 7 (Pedidos + minimo de Pagos, C-44..C-46) y el webhook de Fase 8 (C-47..C-49) tambien completados el mismo dia; C-45 documenta un bug real de concurrencia encontrado y corregido en vivo. Fase 8 solo le falta a los adapters reales Bancard/PagoPar (F8-03/04), bloqueados sin su documentacion de API. B-02, F6-04 y F9-01/F9-03 (C-50..C-52) tambien cerrados el mismo dia — C-52 documenta dos bugs reales mas encontrados en el smoke test (paralelizacion de tests con WebApplicationFactory, orden de middleware para enrichment de logs).
 
@@ -24,7 +24,7 @@ ya esté cerrada — ver `eshopy-frontend/agents/BACKLOG.md`):
 1. ~~**F5-02** (moneda configurable, no `"PYG"` hardcodeado)~~ — ✅ completado, ver C-58.
 2. ~~**F5-03** (auditoría de precio/estado)~~ — ✅ completado, ver C-59.
 3. ~~**D-03** (RowVersion cableado de verdad)~~ — ✅ completado, ver C-60; habilita **GAP-04** del frontend.
-4. **F9-04** (`POST /api/client-errors`) — habilita **D-02** del frontend.
+4. ~~**F9-04** (`POST /api/client-errors`)~~ — ✅ completado, ver C-61; habilita **D-02** del frontend.
 5. **F5-04** (foto de producto) — el más grande de los cinco, habilita **GAP-02** del frontend.
 6. **D-07** (Products a lote) — nueva, agregada 2026-09-08. No es urgente para nada de lo anterior, pero se resuelve antes de tocar tooling/CI (ver la nota de la tabla de deuda técnica, más abajo) y antes de que el frontend arranque cualquier pantalla de carga masiva.
 
@@ -92,11 +92,10 @@ _(vacio)_
 | F8-03 | BancardAdapter | Integracion con Bancard API — bloqueado hasta tener la documentacion real del provider |
 | F8-04 | PagoParAdapter | Integracion con PagoPar API — idem |
 
-### Fase 9 - Observabilidad — F9-01/F9-03 completos (ver C-51..C-52), F9-02 pendiente
+### Fase 9 - Observabilidad — F9-01/F9-03/F9-04 completos (ver C-51..C-52, C-61), F9-02 pendiente
 | # | Tarea | Descripcion |
 |---|---|---|
 | F9-02 | OpenTelemetry traces y metricas | Instrumentacion basica — mas util cuando haya mas de un servicio corriendo; hoy es un unico backend monolitico. Explicitamente no encarado el 2026-07-26 (decision del usuario) |
-| F9-04 | `POST /api/client-errors` | Ver decision completa en `GOVERNANCE.md` ("Reporte de errores del frontend"). Resumen: endpoint anonimo, solo loguea via Serilog (sin tabla nueva), consumido por el `GlobalErrorHandler` de Admin/Storefront (D-02 de ese repo). Truncar mensaje/stack por ser publico sin auth. Decision de esta etapa, no definitiva — revisar Sentry cuando este endpoint casero deje de alcanzar |
 
 ### Fase 10 - Testing
 | # | Tarea | Descripcion |
@@ -172,3 +171,4 @@ _(vacio)_
 | C-58 | F5-02 Moneda configurable por tenant: `CreateTenantCommand.CurrencyCode` requerido (3 letras, validado por forma) y normalizado a mayúsculas en `Store.CreateDefault`; se elimina el hardcode de `PYG` del onboarding. `PlanPricing` queda separado para la moneda de la suscripción. Tests de validación, dominio e integración y contrato/Postman actualizados | Tenants/Store | 2026-09-08 |
 | C-59 | F5-03 Auditoria de precio/estado de Products: `UpdateProductCommandHandler` registra `Product.ChangePrice` solo cuando cambia el precio y `ChangeProductStatusCommandHandler` registra `Product.ChangeStatus` tras una transición válida. Ambos usan `IAuditLogger` best-effort después de persistir; detalles old→new. Dos tests de integración cubren precio+estado y ausencia de ruido cuando el precio no cambia | Catalog/Observabilidad | 2026-09-08 |
 | C-60 | D-03 Concurrencia optimista end-to-end en Products: `ProductAdminDto.RowVersion` base64, PUT/PATCH lo exigen y validan, handlers rechazan token obsoleto con 409 y `EfProductRepository.UpdateAsync` fija el token del cliente como `OriginalValue` para cubrir carreras hasta `SaveChangesAsync`. Fake de integración simula rowversion; tests cubren token faltante, inválido y obsoleto en update/status. Sin migración nueva | Catalog | 2026-09-08 |
+| C-61 | F9-04 Reporte de errores del frontend: `POST /api/client-errors` anónimo, excluido de `TenantResolutionMiddleware`, logging estructurado vía Serilog/`ILogger` sin tabla, truncado de message/stack a 2000 caracteres, URL a 2048 y user-agent a 512, con límite de request de 16 KB. Best-effort: responde 204 aun si falla el sink. Tests cubren acceso anónimo sin tenant, truncado y fallo del logger | Core/Observabilidad | 2026-09-09 |

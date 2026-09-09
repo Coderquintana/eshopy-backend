@@ -56,6 +56,7 @@
 |---|---|
 | `/health` | Health check sin contexto de tenant |
 | `/swagger/*` | Documentación API |
+| `/api/client-errors` | Reporter global del frontend; debe aceptar errores antes del login o cuando todavía no existe/resuelve un tenant |
 | `/api/onboarding/tenants` | Crea el tenant; no puede requerir tenant existente |
 | `/api/admin/tenants/*` | Operación a nivel plataforma (SUPERADMIN), no ligada a un subdominio comercial |
 | `/api/payments/webhooks/*` | Provider no envía subdominio; se resuelve por referencia interna |
