@@ -13,6 +13,7 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next)
   [
     "/health",
     "/swagger",
+    "/api/client-errors",
     "/api/onboarding/tenants",
     "/api/admin/tenants",
     "/api/payments/webhooks"
