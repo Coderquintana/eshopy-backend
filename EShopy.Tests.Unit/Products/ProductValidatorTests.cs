@@ -7,6 +7,8 @@ namespace EShopy.Tests.Unit.Products;
 
 public sealed class ProductValidatorTests
 {
+  private const string ValidRowVersion = "AQAAAAAAAAA=";
+
   // ─── CreateProductCommandValidator ────────────────────────────────────────
 
   [Fact]
@@ -87,7 +89,7 @@ public sealed class ProductValidatorTests
   public void UpdateValidator_ShouldFailWhenPriceNegative()
   {
     var validator = new UpdateProductCommandValidator();
-    var command = new UpdateProductCommand(Guid.NewGuid(), "Coffee", null, -5, 1, null);
+    var command = new UpdateProductCommand(Guid.NewGuid(), "Coffee", null, -5, 1, null, ValidRowVersion);
 
     var result = validator.Validate(command);
 
@@ -99,11 +101,26 @@ public sealed class ProductValidatorTests
   public void UpdateValidator_ShouldFailWhenNameEmpty()
   {
     var validator = new UpdateProductCommandValidator();
-    var command = new UpdateProductCommand(Guid.NewGuid(), "", null, 10, 1, null);
+    var command = new UpdateProductCommand(Guid.NewGuid(), "", null, 10, 1, null, ValidRowVersion);
 
     var result = validator.Validate(command);
 
     result.IsValid.Should().BeFalse();
+  }
+
+  [Theory]
+  [InlineData("")]
+  [InlineData("not-base64")]
+  [InlineData("AQID")]
+  public void UpdateValidator_ShouldFailWhenRowVersionInvalid(string rowVersion)
+  {
+    var validator = new UpdateProductCommandValidator();
+    var command = new UpdateProductCommand(Guid.NewGuid(), "Coffee", null, 10, 1, null, rowVersion);
+
+    var result = validator.Validate(command);
+
+    result.IsValid.Should().BeFalse();
+    result.Errors.Should().Contain(e => e.PropertyName == nameof(UpdateProductCommand.RowVersion));
   }
 
   // ─── ChangeProductStatusCommandValidator ──────────────────────────────────
@@ -112,7 +129,7 @@ public sealed class ProductValidatorTests
   public void StatusValidator_ShouldAllowKnownStatus()
   {
     var validator = new ChangeProductStatusCommandValidator();
-    var command = new ChangeProductStatusCommand(Guid.NewGuid(), ProductStatus.Active);
+    var command = new ChangeProductStatusCommand(Guid.NewGuid(), ProductStatus.Active, ValidRowVersion);
 
     var result = validator.Validate(command);
 
@@ -123,10 +140,25 @@ public sealed class ProductValidatorTests
   public void StatusValidator_ShouldFailForInvalidEnumValue()
   {
     var validator = new ChangeProductStatusCommandValidator();
-    var command = new ChangeProductStatusCommand(Guid.NewGuid(), (ProductStatus)99);
+    var command = new ChangeProductStatusCommand(Guid.NewGuid(), (ProductStatus)99, ValidRowVersion);
 
     var result = validator.Validate(command);
 
     result.IsValid.Should().BeFalse();
+  }
+
+  [Theory]
+  [InlineData("")]
+  [InlineData("not-base64")]
+  [InlineData("AQID")]
+  public void StatusValidator_ShouldFailWhenRowVersionInvalid(string rowVersion)
+  {
+    var validator = new ChangeProductStatusCommandValidator();
+    var command = new ChangeProductStatusCommand(Guid.NewGuid(), ProductStatus.Active, rowVersion);
+
+    var result = validator.Validate(command);
+
+    result.IsValid.Should().BeFalse();
+    result.Errors.Should().Contain(e => e.PropertyName == nameof(ChangeProductStatusCommand.RowVersion));
   }
 }

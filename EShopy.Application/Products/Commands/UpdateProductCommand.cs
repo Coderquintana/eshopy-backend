@@ -7,4 +7,5 @@ public sealed record UpdateProductCommand(
   string? Description,
   decimal Price,
   int StockOnHand,
-  string? Sku);
+  string? Sku,
+  string RowVersion);

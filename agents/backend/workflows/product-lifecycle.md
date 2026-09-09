@@ -2,6 +2,17 @@
 
 > Flujo completo del ciclo de vida de un producto: Draft → Active → Archived.
 
+## Concurrencia optimista
+
+Todo `ProductAdminDto` incluye `rowVersion`, un string base64 que representa los 8 bytes de `rowversion` de SQL Server. Las mutaciones de producto existentes (`PUT` y `PATCH status`) deben reenviar el token recibido en la última lectura o respuesta.
+
+- Falta `rowVersion`, no es base64 válido o no representa exactamente 8 bytes → `400 VALIDATION_ERROR`.
+- El token ya no coincide con la fila actual → `409 CONCURRENCY_CONFLICT` sin aplicar la mutación.
+- Si otra escritura ocurre después de la lectura del handler pero antes de `SaveChangesAsync`, `EfProductRepository` fija el token del cliente como `OriginalValue`; EF detecta la carrera y `GlobalExceptionMiddleware` devuelve el mismo `409 CONCURRENCY_CONFLICT`.
+- Cada mutación exitosa devuelve un `ProductAdminDto` con un **nuevo** `rowVersion`; el cliente debe reemplazar el token anterior y nunca reintentar una escritura con el token viejo.
+
+No hay migración nueva para D-03: `Products.RowVersion` ya existía y estaba configurado con `IsRowVersion()`.
+
 ## Diagrama de estados
 
 ```
@@ -47,7 +58,7 @@
    c. Sku no existe para este tenant si no es null (IProductRepository.SkuExistsAsync)
 4. Product.Create(...) — crea con Status = Draft
 5. IProductRepository.AddAsync(product)
-6. Retorna ProductAdminDto con Status = "Draft"
+6. Retorna ProductAdminDto con Status = "Draft" y `rowVersion` inicial
 ```
 
 **Reglas de validación del request (FluentValidation):**
@@ -64,15 +75,23 @@
 **Endpoint**: `PATCH /api/products/{id}/status`
 **Auth**: `CatalogWrite`
 
+```json
+{
+  "status": 1,
+  "rowVersion": "<base64 recibido del ProductAdminDto>"
+}
 ```
-1. Admin envía { "status": 1 } (Active)
+
+```
+1. Admin envía status + rowVersion actual
 2. ChangeProductStatusCommandHandler:
    a. GetByIdAsync — si no existe → NOT_FOUND (404)
-   b. Valida transición: Draft → Active ✅
-   c. product.ChangeStatus(Active, utcNow)
-   d. IProductRepository.UpdateAsync(product)
-   e. AuditLog `Product.ChangeStatus` con `Draft -> Active`
-3. Retorna ProductAdminDto con Status = "Active"
+   b. Compara rowVersion — si no coincide → CONCURRENCY_CONFLICT (409)
+   c. Valida transición: Draft → Active ✅
+   d. product.ChangeStatus(Active, utcNow)
+   e. IProductRepository.UpdateAsync(product, expectedRowVersion)
+   f. AuditLog `Product.ChangeStatus` con `Draft -> Active`
+3. Retorna ProductAdminDto con Status = "Active" y un nuevo `rowVersion`
 ```
 
 **Efecto en Storefront**: producto aparece en `GET /api/public/products`
@@ -84,14 +103,15 @@
 **Auth**: `CatalogWrite`
 
 ```
-1. Admin envía { "status": 2 } (Archived)
+1. Admin envía { "status": 2, "rowVersion": "<token actual>" } (Archived)
 2. ChangeProductStatusCommandHandler:
    a. GetByIdAsync — si no existe → NOT_FOUND (404)
-   b. Valida transición: Active → Archived ✅
-   c. product.ChangeStatus(Archived, utcNow)
-   d. UpdateAsync
-   e. AuditLog `Product.ChangeStatus` con `Active -> Archived`
-3. Retorna ProductAdminDto con Status = "Archived"
+   b. Compara rowVersion — si no coincide → CONCURRENCY_CONFLICT (409)
+   c. Valida transición: Active → Archived ✅
+   d. product.ChangeStatus(Archived, utcNow)
+   e. UpdateAsync(product, expectedRowVersion)
+   f. AuditLog `Product.ChangeStatus` con `Active -> Archived`
+3. Retorna ProductAdminDto con Status = "Archived" y un nuevo `rowVersion`
 ```
 
 **Efecto en Storefront**: producto desaparece del catálogo público.
@@ -99,12 +119,12 @@
 
 ## Flujo 4: Reactivar producto (Archived → Active)
 
-Igual que Flujo 2 pero el producto parte desde `Archived`.
+Igual que Flujo 2 pero el producto parte desde `Archived`. Requiere el `rowVersion` actual y devuelve un token nuevo.
 
 ```
-1. Admin envía { "status": 1 } (Active)
-2. Valida transición: Archived → Active ✅
-3. product.ChangeStatus(Active, utcNow) + UpdateAsync
+1. Admin envía { "status": 1, "rowVersion": "<token actual>" } (Active)
+2. Valida rowVersion y transición: Archived → Active ✅
+3. product.ChangeStatus(Active, utcNow) + UpdateAsync(product, expectedRowVersion)
 4. AuditLog `Product.ChangeStatus` con `Archived -> Active`
 ```
 
@@ -114,16 +134,28 @@ Igual que Flujo 2 pero el producto parte desde `Archived`.
 **Endpoint**: `PUT /api/products/{id}`
 **Auth**: `CatalogWrite`
 
+```json
+{
+  "name": "Producto",
+  "description": "Descripción",
+  "price": 1500,
+  "stockOnHand": 5,
+  "sku": "SKU-001",
+  "rowVersion": "<base64 recibido del ProductAdminDto>"
+}
 ```
-1. Admin envía UpdateProductRequest (name, description, price, stockOnHand, sku?)
+
+```
+1. Admin envía UpdateProductRequest (name, description, price, stockOnHand, sku?, rowVersion)
 2. UpdateProductCommandHandler:
    a. GetByIdAsync — si no existe → NOT_FOUND (404)
-   b. Si Sku cambia: verificar unicidad en tenant
-   c. Guardar el precio anterior
-   d. product.UpdateDetails(...)
-   e. UpdateAsync
-   f. Si el precio cambió: AuditLog `Product.ChangePrice` con `OldPrice -> NewPrice`
-3. Retorna ProductAdminDto actualizado
+   b. Compara rowVersion — si no coincide → CONCURRENCY_CONFLICT (409)
+   c. Si Sku cambia: verificar unicidad en tenant
+   d. Guardar el precio anterior
+   e. product.UpdateDetails(...)
+   f. UpdateAsync(product, expectedRowVersion)
+   g. Si el precio cambió: AuditLog `Product.ChangePrice` con `OldPrice -> NewPrice`
+3. Retorna ProductAdminDto actualizado con un nuevo `rowVersion`
 ```
 
 **Nota**: `Slug` no es editable una vez creado (URL permanente). Para cambiar slug, archivar y crear nuevo producto.

@@ -6,7 +6,7 @@ namespace EShopy.Application.Products;
 public interface IProductRepository
 {
   Task AddAsync(Product product, CancellationToken ct);
-  Task UpdateAsync(Product product, CancellationToken ct);
+  Task UpdateAsync(Product product, byte[] expectedRowVersion, CancellationToken ct);
   Task<Product?> GetByIdAsync(Guid tenantId, Guid id, CancellationToken ct);
   Task<Product?> GetBySlugAsync(Guid tenantId, string slug, CancellationToken ct);
 

@@ -1,13 +1,20 @@
+using System.Reflection;
 using EShopy.Application.Products;
 using EShopy.Application.Products.Contracts;
+using EShopy.Domain.Common.Entities;
 using EShopy.Domain.Products;
+using Microsoft.EntityFrameworkCore;
 
 namespace EShopy.Tests.Integration.Support;
 
 internal sealed class InMemoryProductRepository : IProductRepository
 {
+  private static readonly MethodInfo RowVersionSetter =
+    typeof(AppEntity).GetProperty(nameof(AppEntity.RowVersion))!.GetSetMethod(nonPublic: true)!;
+
   private readonly object _sync = new();
   private readonly Dictionary<Guid, List<Product>> _productsByTenant = new();
+  private long _rowVersionCounter;
 
   public Task AddAsync(Product product, CancellationToken ct)
   {
@@ -19,13 +26,28 @@ internal sealed class InMemoryProductRepository : IProductRepository
         _productsByTenant[product.TenantId] = products;
       }
 
+      AdvanceRowVersion(product);
       products.Add(product);
     }
 
     return Task.CompletedTask;
   }
 
-  public Task UpdateAsync(Product product, CancellationToken ct) => Task.CompletedTask;
+  public Task UpdateAsync(Product product, byte[] expectedRowVersion, CancellationToken ct)
+  {
+    lock (_sync)
+    {
+      if (product.RowVersion is not { Length: 8 } currentRowVersion ||
+          !currentRowVersion.AsSpan().SequenceEqual(expectedRowVersion))
+      {
+        throw new DbUpdateConcurrencyException("El RowVersion esperado no coincide con el actual.");
+      }
+
+      AdvanceRowVersion(product);
+    }
+
+    return Task.CompletedTask;
+  }
 
   public Task<Product?> GetByIdAsync(Guid tenantId, Guid id, CancellationToken ct)
   {
@@ -123,5 +145,11 @@ internal sealed class InMemoryProductRepository : IProductRepository
 
       return Task.FromResult(exists);
     }
+  }
+
+  private void AdvanceRowVersion(Product product)
+  {
+    var rowVersion = BitConverter.GetBytes(Interlocked.Increment(ref _rowVersionCounter));
+    RowVersionSetter.Invoke(product, new object?[] { rowVersion });
   }
 }

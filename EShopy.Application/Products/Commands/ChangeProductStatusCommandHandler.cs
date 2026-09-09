@@ -29,18 +29,24 @@ public sealed class ChangeProductStatusCommandHandler(
       return Result<ProductAdminDto>.Fail(ErrorCodes.TenantNotFound, "No se pudo resolver el tenant.");
 
     var tenantId = tenantContext.TenantId.Value;
+    var expectedRowVersion = ProductConcurrency.Decode(command.RowVersion);
 
     // 3. Buscar producto
     var product = await repository.GetByIdAsync(tenantId, command.Id, ct);
     if (product is null)
       return Result<ProductAdminDto>.Fail(ErrorCodes.NotFound, "Producto no encontrado.");
 
+    if (!ProductConcurrency.Matches(product, expectedRowVersion))
+      return Result<ProductAdminDto>.Fail(
+        ErrorCodes.ConcurrencyConflict,
+        "El producto fue modificado por otro usuario. Recargá los datos e intentá nuevamente.");
+
     // 4. Aplicar transición (DomainException si la transición no es válida)
     try
     {
       var previousStatus = product.Status;
       product.ChangeStatus(command.Status, DateTime.UtcNow);
-      await repository.UpdateAsync(product, ct);
+      await repository.UpdateAsync(product, expectedRowVersion, ct);
       await auditLogger.LogAsync(tenantId, "Product.ChangeStatus", "Product", product.Id, $"{previousStatus} -> {product.Status}", ct);
       return Result<ProductAdminDto>.Ok(ProductMappings.ToAdminDto(product));
     }

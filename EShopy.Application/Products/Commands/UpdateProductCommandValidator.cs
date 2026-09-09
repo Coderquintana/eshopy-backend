@@ -29,5 +29,14 @@ public sealed class UpdateProductCommandValidator : AbstractValidator<UpdateProd
     RuleFor(x => x.StockOnHand)
       .GreaterThanOrEqualTo(0)
       .WithMessage("El stock del producto debe ser mayor o igual a cero.");
+
+    RuleFor(x => x.RowVersion)
+      .NotEmpty()
+      .WithMessage("La versión del producto es obligatoria.");
+
+    RuleFor(x => x.RowVersion)
+      .Must(ProductConcurrency.IsValidToken)
+      .WithMessage("La versión del producto no es válida.")
+      .When(x => !string.IsNullOrWhiteSpace(x.RowVersion));
   }
 }

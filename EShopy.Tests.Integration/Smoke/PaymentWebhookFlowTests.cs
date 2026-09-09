@@ -155,10 +155,10 @@ public sealed class PaymentWebhookFlowTests : IClassFixture<SecurityWebApplicati
     createResponse.EnsureSuccessStatusCode();
     var product = (await createResponse.Content.ReadFromJsonAsync<ProductAdminDto>())!;
 
-    var statusCommand = new ChangeProductStatusCommand(product.Id, ProductStatus.Active);
+    var statusCommand = new ChangeProductStatusCommand(product.Id, ProductStatus.Active, product.RowVersion);
     var statusResponse = await client.PatchAsync($"/api/products/{product.Id}/status", JsonContent.Create(statusCommand));
     statusResponse.EnsureSuccessStatusCode();
 
-    return product;
+    return (await statusResponse.Content.ReadFromJsonAsync<ProductAdminDto>())!;
   }
 }

@@ -14,9 +14,10 @@ public sealed class EfProductRepository(EShopyDbContext db) : IProductRepository
     await db.SaveChangesAsync(ct);
   }
 
-  public async Task UpdateAsync(Product product, CancellationToken ct)
+  public async Task UpdateAsync(Product product, byte[] expectedRowVersion, CancellationToken ct)
   {
     db.Products.Update(product);
+    db.Entry(product).Property(p => p.RowVersion).OriginalValue = expectedRowVersion;
     await db.SaveChangesAsync(ct);
   }
 

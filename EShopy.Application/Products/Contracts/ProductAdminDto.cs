@@ -11,6 +11,7 @@ public sealed class ProductAdminDto
   public required string CurrencyCode { get; init; }
   public required string Status { get; init; }
   public required int StockOnHand { get; init; }
+  public required string RowVersion { get; init; }
   public required DateTime CreatedAtUtc { get; init; }
   public DateTime? UpdatedAtUtc { get; init; }
 }

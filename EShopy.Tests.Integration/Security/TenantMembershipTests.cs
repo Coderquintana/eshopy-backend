@@ -189,9 +189,9 @@ public sealed class TenantMembershipTests : IClassFixture<SecurityWebApplication
 
     var statusResponse = await client.PatchAsync(
       $"/api/products/{product.Id}/status",
-      JsonContent.Create(new ChangeProductStatusCommand(product.Id, ProductStatus.Active)));
+      JsonContent.Create(new ChangeProductStatusCommand(product.Id, ProductStatus.Active, product.RowVersion)));
     statusResponse.EnsureSuccessStatusCode();
 
-    return product;
+    return (await statusResponse.Content.ReadFromJsonAsync<ProductAdminDto>())!;
   }
 }

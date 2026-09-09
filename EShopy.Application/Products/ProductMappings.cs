@@ -17,6 +17,7 @@ internal static class ProductMappings
     CurrencyCode = product.CurrencyCode,
     Status = product.Status.ToString(),
     StockOnHand = product.StockOnHand,
+    RowVersion = ProductConcurrency.Encode(product.RowVersion),
     CreatedAtUtc = product.CreatedAtUtc,
     UpdatedAtUtc = product.UpdatedAtUtc
   };

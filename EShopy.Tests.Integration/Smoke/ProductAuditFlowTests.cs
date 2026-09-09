@@ -32,14 +32,16 @@ public sealed class ProductAuditFlowTests : IClassFixture<SecurityWebApplication
       "Updated description",
       15.75m,
       8,
-      null);
+      null,
+      created.RowVersion);
 
     var updateResponse = await client.PutAsJsonAsync($"/api/products/{created.Id}", updateCommand);
     updateResponse.IsSuccessStatusCode.Should().BeTrue();
+    var updated = (await updateResponse.Content.ReadFromJsonAsync<ProductAdminDto>())!;
 
-    var statusCommand = new ChangeProductStatusCommand(created.Id, ProductStatus.Active);
+    var statusCommand = new ChangeProductStatusCommand(updated.Id, ProductStatus.Active, updated.RowVersion);
     var statusResponse = await client.PatchAsync(
-      $"/api/products/{created.Id}/status",
+      $"/api/products/{updated.Id}/status",
       JsonContent.Create(statusCommand));
     statusResponse.IsSuccessStatusCode.Should().BeTrue();
 
@@ -69,7 +71,8 @@ public sealed class ProductAuditFlowTests : IClassFixture<SecurityWebApplication
       "Same price",
       20m,
       12,
-      "SKU-AUDIT");
+      "SKU-AUDIT",
+      created.RowVersion);
 
     var response = await client.PutAsJsonAsync($"/api/products/{created.Id}", updateCommand);
     response.IsSuccessStatusCode.Should().BeTrue();
