@@ -35,6 +35,7 @@
 | **Snapshot de precio en OrderItem** | Precio del producto al momento del checkout, no referencia dinámica |
 | **Idempotencia de webhooks** | Tabla `PaymentEventsProcessed`. Evento duplicado no cambia estado |
 | **Transiciones de estado cerradas** | Ver tablas en `domain/*.md`. No se permiten transiciones no listadas |
+| **Personalización cosmética de Store vía `Data`, no columnas nuevas** | Definido 2026-09-11. Los 6 campos actuales de `Store` (`Name`, `Timezone`, `PrimaryColor`, `LogoUrl`, `BackgroundColor`, `Description`) siguen siendo columnas reales con validación de dominio — son identidad de negocio, no decoración. Cualquier knob puramente cosmético que se agregue después (tipografía, tamaño de texto, densidad, etc., ver `eshopy-frontend/agents/BACKLOG.md` F-11) va en un record `StoreTheme` serializado en la columna `Data` que `AppEntity` ya expone (mismo patrón que `ProductData` en Products, ya probado). Agregar un knob cosmético nuevo = una propiedad en el record C#, sin migración. Se descartó a propósito un modelo EAV (tabla de `Id`/enum de clave/valor): resuelve "nunca más migrar" a costa de perder tipado y validación en el dominio — el mismo problema que ya se evitó con Products. Nada de esto está implementado todavía; es la forma acordada para cuando exista el primer campo cosmético real |
 
 ---
 

@@ -49,6 +49,12 @@
 
 > En MVP: 1 Store por Tenant. El `StoreId` se resuelve en backend, nunca del request.
 
+> **Extensibilidad cosmética**: estos 6 campos son identidad de negocio (columnas reales,
+> con validación de dominio) y no crecen más así. Cualquier knob puramente cosmético futuro
+> (tipografía, tamaño de texto, etc.) va en un record `StoreTheme` sobre la columna `Data` que
+> `Store` ya hereda de `AppEntity` — mismo patrón que `ProductData` — sin migración nueva por
+> cada uno. Ver `GOVERNANCE.md` "Decisiones de dominio". No implementado todavía.
+
 ## TenantUser — Propiedades
 
 | Propiedad | Tipo | Nullable | Descripción |
