@@ -68,6 +68,15 @@ cualquier cosa" y "esta es mi tienda de verdad para mostrar". Reset completo doc
 `docs/keycloak-setup.md` y en un `.txt` de credenciales de dev en el escritorio de cada máquina
 (fuera del repo a propósito, no versionado — son passwords, aunque sean solo de dev local).
 
+**El proyecto se trabaja desde más de una máquina física** (al menos una notebook personal y una del
+trabajo, confirmado 2026-09-11). Git sincroniza código/migraciones/docs; los volúmenes Docker
+(SQL Server, Keycloak) son locales a cada máquina y nunca se sincronizan — un tenant o seed creado en
+una no existe en la otra, sin excepción. Documentado como regla operativa en
+`.claude/skills/run-eshopy/SKILL.md` sección "0" (léela primero: verificar el estado local en vivo
+antes de asumir que un tenant/usuario/seed de una sesión anterior sigue existiendo). No es un ítem
+para "resolver" — es una restricción a respetar; ENV-01 (QA compartido, no en un laptop) es lo más
+cerca que hay de una solución real si algún día molesta de verdad.
+
 | # | Tarea | Detalle |
 |---|---|---|
 | ENV-01 | Perfil de entorno `QA` explícito | `appsettings.QA.json` (mismo patrón que Development/Production) + `ASPNETCORE_ENVIRONMENT=QA`. Un escalón estable entre "mi laptop" y Production, no reemplaza a ninguno de los dos. Dónde corre físicamente (mismo docker-compose con un profile separado vs. un servidor real compartido) depende de DEPLOY-01 (hosting real) — definir la infraestructura de QA antes de esa decisión es especular sobre algo que todavía no existe |

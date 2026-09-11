@@ -16,6 +16,25 @@ para el estado real antes de asumir que algo falta.
 
 ---
 
+## 0. Este proyecto se desarrolla desde más de una máquina física
+
+El usuario trabaja en esto desde al menos dos notebooks (una personal, una del trabajo). **Git
+sincroniza el código, las migraciones y los docs — nada más.** Lo que corre en Docker (SQL Server,
+Keycloak) vive en volúmenes 100% locales a cada máquina, nunca se sube a ningún lado, y no hay
+forma de que una máquina sepa qué hay en la otra.
+
+Consecuencia práctica: **no asumas continuidad de estado local entre sesiones** sin verificarlo. Un
+tenant, un seed, un usuario de Keycloak o cualquier dato que exista hoy en una máquina puede no
+existir en la otra — no es un bug, es la naturaleza del setup (confirmado el 2026-09-11: en la
+notebook personal el volumen de SQL Server viene acumulando datos desde 2026-07-26 sin que nadie lo
+haya reseteado; en otra sesión, en otra máquina, sin ese volumen, un agente anterior tuvo que crear
+un seed nuevo porque no había nada). Antes de dar por sentado que existe un tenant, un usuario o
+cualquier dato de prueba: verificar en vivo (`docker volume ls`, una query a `Tenants`), no asumir
+por lo que diga la conversación o una sesión anterior. Ver `agents/backend/BACKLOG.md` sección
+"ENTORNOS" para la política completa (playground vs. tenant de demo, reset, credenciales).
+
+---
+
 ## 1. Infraestructura (Docker)
 
 ```bash
