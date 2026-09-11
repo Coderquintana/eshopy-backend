@@ -41,8 +41,8 @@ _(vacio — B-02 resuelto, ver COMPLETADAS C-50)_
 ## DEUDA TECNICA / ARQUITECTURA — fase de estabilización antes de CI/CD
 
 Esta tabla es la fase de estabilización: no bloquea el trabajo de hoy, pero
-se paga caro si se ignora antes de invertir en CI/CD para este repo (no
-existe ese ítem todavía en este backlog) — automatizar tests/deploy contra
+se paga caro si se ignora antes de invertir en CI/CD para este repo (ver
+sección "ENTORNOS" más abajo) — automatizar tests/deploy contra
 un contrato que ya sabemos que va a cambiar (D-07) es repetir el trabajo
 dos veces. No bloquea el tooling del frontend (L-05/L-07 en su `BACKLOG.md`),
 que es independiente de esto.
@@ -53,6 +53,32 @@ que es independiente de esto.
 | D-07 | Endpoints de Products nacieron singulares, no en lote | Catalog | Viola la regla nueva de `GOVERNANCE.md` ("Mutaciones en lote por defecto", 2026-09-08): `POST /api/products` crea uno, `PUT /api/products/{id}` actualiza uno, no existe `DELETE`. Se escribieron antes de que la regla existiera. Migrar a `POST /api/products/batch` (o equivalente) que reciba una lista — un alta individual sigue siendo un lote de 1, sin caso especial. Motivo concreto, no estético: el negocio va a necesitar cargar catálogos grandes (una tienda no carga 300 productos de a uno), y ese día el contrato tiene que estar listo sin romper a los clientes que ya llaman la forma singular — por eso conviene resolverlo ahora, con poco código en juego, y no después con Products en producción. El frontend no tiene que cambiar nada todavía: sigue llamando con lote de 1 hasta que exista una función real de carga masiva (ver `eshopy-frontend/agents/BACKLOG.md`, "Más adelante"). **Pendiente, no implementado** — bloquea empezar cualquier carga masiva del lado del frontend |
 
 **D-01 (Unit of Work explicito) — descartado a proposito (2026-07-26).** Se implemento (`IUnitOfWork`/`EfUnitOfWork`) y se revirtio en la misma sesion: `EShopyDbContext` ya ES un Unit of Work (trackea cambios, `SaveChangesAsync` los confirma atomicamente); envolverlo en otra interfaz es abstraer una abstraccion sin necesidad real todavia, porque solo existe un repositorio (`IProductRepository`). El repositorio vuelve a llamar `SaveChangesAsync` directamente. **Revisar esta decision cuando exista una operacion que necesite escribir a traves de mas de un repositorio en una sola transaccion** (candidato: Checkout en F7-02 — stock + order + payment).
+
+---
+
+## ENTORNOS — definido 2026-09-11, nada implementado
+
+Hoy solo existen dos entornos de hecho, ninguno formalizado más allá de un archivo de config:
+`Development` (Docker local, `appsettings.Development.json`) y una intención de `Production`
+(`appsettings.Production.json`, con placeholders — ver F4-07). No hay un QA intermedio, y "entorno"
+hoy es sinónimo de "la base de datos de quien sea que esté corriendo `docker compose up`" — ver la
+sesión del 2026-09-11 en el historial de chat: la DB local de un desarrollador acumula datos desde
+que se creó el volumen Docker (en este caso, desde 2026-07-26), sin distinción entre "estoy probando
+cualquier cosa" y "esta es mi tienda de verdad para mostrar". Reset completo documentado en
+`docs/keycloak-setup.md` y en un `.txt` de credenciales de dev en el escritorio de cada máquina
+(fuera del repo a propósito, no versionado — son passwords, aunque sean solo de dev local).
+
+| # | Tarea | Detalle |
+|---|---|---|
+| ENV-01 | Perfil de entorno `QA` explícito | `appsettings.QA.json` (mismo patrón que Development/Production) + `ASPNETCORE_ENVIRONMENT=QA`. Un escalón estable entre "mi laptop" y Production, no reemplaza a ninguno de los dos. Dónde corre físicamente (mismo docker-compose con un profile separado vs. un servidor real compartido) depende de DEPLOY-01 (hosting real) — definir la infraestructura de QA antes de esa decisión es especular sobre algo que todavía no existe |
+| ENV-02 | Enmascarar datos en QA/staging | Política, no herramienta: el día que QA (o cualquier entorno no-dev) se siembre con datos derivados de un tenant real — no hoy, no existe producción todavía — todo PII (`ownerEmail`, nombre, dirección de `Order`) se enmascara antes de cargarse ahí. Se define ahora para no improvisarlo el día que exista un tenant real que valga la pena copiar para probar con volumen realista. Hasta entonces, cualquier entorno no-dev se siembra igual que hoy: `DevSeeder` u onboarding real con datos inventados, nunca con datos de una tienda real |
+| ENV-03 | Separar tenant "playground" del tenant "demo" en dev local | No es código, es disciplina: `smoketest2` (o el que sea) queda para probar cosas destructivas/masivas: como el aislamiento es por `TenantId` (Global Query Filter), lo que se rompe ahí no puede tocar otro tenant. La tienda que se cree para mostrarle a alguien de verdad se trata aparte, sin experimentos |
+
+**Perfiles de rol/permiso**, si "perfiles del sistema" se refería a esto y no a entornos: ya existen y
+están completos — `ESHOPY_SUPERADMIN`/`TENANT_OWNER`/`TENANT_ADMIN`/`TENANT_STAFF`, ver
+`GOVERNANCE.md` "Roles y permisos". Nada pendiente ahí; si la idea era otra cosa (perfiles de
+configuración por entorno, ya cubierto arriba en ENV-01, o algo distinto), aclarar antes de convertir
+esto en una tarea.
 
 ---
 
