@@ -81,17 +81,32 @@
 
 ## Planes de producto (MVP vs futuros)
 
-| Feature | Plan Básico (MVP) | Plan Gold | Plan Diamond |
+Revisado y ampliado 2026-09-11 — cada nivel tiene que sentirse como que vale
+el salto de precio, no un par de checkboxes más. Básico es la puerta de
+entrada: incluye personalización completa (los 16 campos de Store, F4-09) y
+la IA de armado de tienda (F-11) a propósito, para no trabar la adopción.
+
+| Feature | Básico (MVP) | Gold | Diamond |
 |---|---|---|---|
-| Tienda con subdominio | ✅ | ✅ | ✅ |
-| Catálogo de productos | ✅ | ✅ | ✅ |
-| Carrito y checkout | ✅ | ✅ | ✅ |
-| Pagos (Bancard / PagoPar) | ✅ | ✅ | ✅ |
+| Tienda con subdominio, catálogo, carrito+checkout, pagos | ✅ | ✅ | ✅ |
+| Personalización (16 campos de Store, incl. `StoreTheme`) + armado con IA (F-11) | ✅ | ✅ | ✅ |
 | Variantes de producto | ❌ | ✅ | ✅ |
-| Gestión de clientes (Customer) | ❌ | ✅ | ✅ |
+| Gestión de clientes | ❌ | ✅ | ✅ |
 | Cupones y promociones | ❌ | ✅ | ✅ |
+| Reportes operativos | ❌ | ✅ | ✅ |
+| Integración WhatsApp | ❌ | ✅ | ✅ |
+| Carga masiva de productos (`D-07`/`eshopy-frontend` `L-09`) | ❌ | ✅ | ✅ |
 | Multi-sucursal / multi-almacén | ❌ | ❌ | ✅ |
 | Facturación electrónica | ❌ | ❌ | ✅ |
+| Múltiples pasarelas de pago | ❌ | ❌ | ✅ |
+| Roles y permisos configurables (ver `F4-10` y la nota de RBAC en sesión del 2026-09-11) | ❌ | ❌ | ✅ |
+| Integraciones contables | ❌ | ❌ | ✅ |
+
+Nada de esta tabla está implementado como gating todavía (`TenantPlan` se
+guarda en `Subscription` pero hoy ninguna policy lo consulta) — es la
+definición de qué va en cada nivel, no el mecanismo. El mecanismo (backend:
+catálogo `TenantPlan → features`; frontend: componente `LockedFeature`
+reusable) queda para otra sesión de definición antes de picar código.
 
 ---
 
