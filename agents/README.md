@@ -72,11 +72,13 @@ agents/
 
 | Archivo | Propósito |
 |---|---|
-| `documentation.md` | Compilado v2.0 (2026-02-17) de 11 documentos originales — **desactualizado**: es anterior a Tenants, Carts, Orders, Payments y todo el Admin. Sirve como narrativa histórica del plan inicial, no como estado actual — para eso, `backend/CURRENT_STATE.md` |
-| `Documentation Copy/` | Los 11 documentos originales (`.docx`) de los que sale `documentation.md` |
 | `Documentation/Postman/` | Colección Postman — contrato de endpoints MVP |
 | `Documentation/Keycloak/` | Configuración del realm Keycloak para dev |
 | `docs/keycloak-setup.md` | Guía de Keycloak (roles, usuarios de prueba, troubleshooting) |
+
+> El plan inicial consolidado (`documentation.md` + `Documentation Copy/*.docx`, v2.0 de feb-2026) se borró
+> el 2026-09-11: estaba desactualizado desde antes de Tenants/Carts/Orders/Payments/Admin y ya no aportaba
+> nada que `backend/CURRENT_STATE.md` no cubra mejor. Sigue recuperable en el historial de git si hace falta.
 
 ---
 
