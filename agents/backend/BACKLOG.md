@@ -109,6 +109,7 @@ _(vacio)_
 |---|---|---|
 | F4-06 | Precios reales de planes | `PlanPricing.cs` retorna 0 para los 3 planes (GOVERNANCE.md los marca TBD). Reemplazar cuando el negocio defina precios |
 | F4-07 | Secret management para Keycloak Admin API en produccion | `appsettings.Production.json` sigue con un placeholder de secret; inyectar via secret store real antes de deployar |
+| F4-08 | Cambiar el subdominio de un tenant ya creado | No existe hoy — `TenantsController` solo tiene `GET` y `activate`. No es un problema de acoplamiento (confirmado 2026-09-11 grepeando cada uso de `Subdomain`: es solo una clave de busqueda con indice unico + cache ~60s en `EfTenantResolver`, nada mas lo referencia — el aislamiento real es por `TenantId`, inmutable). Cuando haga falta: mismo patron que ya existe para el `Slug` de Products — `UpdateSubdomainCommand`, valida unicidad, `Tenant.ChangeSubdomain()` en dominio, invalidar el cache del resolver. Sin prioridad hasta que alguien lo pida de verdad |
 
 ### Fase 5 - Catalog (refactor)
 | # | Tarea | Descripcion |
