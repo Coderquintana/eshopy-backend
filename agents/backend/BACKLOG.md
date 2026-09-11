@@ -6,6 +6,33 @@
 
 ---
 
+## Sesión 2026-09-11: definición larga (Store, planes, entornos), para que otro agente siga
+
+Nada de código tocado del lado backend esta sesión salvo el fix de auth
+(C-62, ya en COMPLETADAS) y el ajuste al realm de Keycloak. Todo lo demás
+—`F4-09`, `F4-10`, la matriz de planes en `GOVERNANCE.md`, `ENTORNOS`— es
+definición para que un agente sin este contexto lo implemente sin inventar
+alcance. **Un solo prompt por ítem.**
+
+**Orden sugerido**: ver `eshopy-frontend/agents/BACKLOG.md`, sesión
+2026-09-11 — el orden real cruza los dos repos (F-11 del frontend antes que
+`F4-09` acá, a propósito). No implementar `F4-09` aislado sin leer esa nota
+primero.
+
+**Antes de tocar cualquier cosa que necesite Docker/Keycloak**: leer
+`.claude/skills/run-eshopy/SKILL.md` sección "0" — el estado local (tenants,
+seeds, usuarios) no se sincroniza entre máquinas, verificar en vivo, no
+asumir. Y antes de dar por terminado un módulo: probarlo contra Docker real,
+no solo contra los tests con fakes — ver la memoria de este proyecto
+("live-test before done"), encontró 5 bugs reales que ningún test detectaba.
+
+**No tocar sin una sesión de definición nueva**: `F4-10` (panel de tenants
+SUPERADMIN, la idea está anotada pero sin alcance) y el mecanismo de gating
+de planes (la lista de features por plan ya está cerrada arriba, el *cómo*
+bloquearlo en código no).
+
+---
+
 ## Sesión 2026-09-08 (segunda mitad): solo definición, nada implementado
 
 Después de cerrar C-57 (aislamiento por tenant), el resto de esta sesión fue
