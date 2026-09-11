@@ -3,6 +3,7 @@ using EShopy.Application.Tenants.Contracts;
 using EShopy.Domain.Common.Errors;
 using EShopy.Domain.Common.Exceptions;
 using EShopy.Domain.Common.Results;
+using EShopy.Domain.Tenants;
 
 namespace EShopy.Application.Tenants.Commands;
 
@@ -30,8 +31,14 @@ public sealed class UpdateStoreCommandHandler(
 
     try
     {
+      var updatedAtUtc = DateTime.UtcNow;
       store.UpdateProfile(command.Name, command.Timezone, command.PrimaryColor, command.LogoUrl,
-        command.BackgroundColor, command.Description, DateTime.UtcNow);
+        command.BackgroundColor, command.Description, updatedAtUtc);
+      store.UpdateContactInformation(command.ContactWhatsapp, command.ContactEmail,
+        command.InstagramUrl, command.FacebookUrl, command.Address, command.BusinessHours,
+        updatedAtUtc);
+      store.UpdateTheme(new StoreTheme(command.FontFamily, command.HeadingScale,
+        command.BorderRadius, command.SpacingDensity), updatedAtUtc);
 
       await repository.UpdateAsync(store, ct);
       return Result<StoreProfileDto>.Ok(TenantMappings.ToStoreProfileDto(store));

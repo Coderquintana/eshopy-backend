@@ -6,4 +6,14 @@ public sealed record UpdateStoreCommand(
   string? PrimaryColor,
   string? LogoUrl,
   string? BackgroundColor,
-  string? Description);
+  string? Description,
+  string? ContactWhatsapp = null,
+  string? ContactEmail = null,
+  string? InstagramUrl = null,
+  string? FacebookUrl = null,
+  string? Address = null,
+  string? BusinessHours = null,
+  string? FontFamily = null,
+  string? HeadingScale = null,
+  string? BorderRadius = null,
+  string? SpacingDensity = null);

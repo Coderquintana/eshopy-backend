@@ -316,7 +316,17 @@ Configuración pública del store, resuelto por subdominio.
   "primaryColor": "#007bff",
   "logoUrl": "https://...",
   "backgroundColor": "#FFFFFF",
-  "description": "Una tienda de ejemplo"
+  "description": "Una tienda de ejemplo",
+  "contactWhatsapp": "+595 981 123456",
+  "contactEmail": "ventas@mitienda.com",
+  "instagramUrl": "https://instagram.com/mitienda",
+  "facebookUrl": "https://facebook.com/mitienda",
+  "address": "Asunción, Paraguay",
+  "businessHours": "Lun a sáb, 09:00 a 18:00",
+  "fontFamily": "Georgia",
+  "headingScale": "large",
+  "borderRadius": "rounded",
+  "spacingDensity": "spacious"
 }
 ```
 
@@ -336,9 +346,24 @@ rompería precios ya registrados en Products/Orders.
   "primaryColor": "#007bff",
   "logoUrl": "https://cdn.example.com/logo.png",
   "backgroundColor": "#FFFFFF",
-  "description": "Una tienda de ejemplo"
+  "description": "Una tienda de ejemplo",
+  "contactWhatsapp": "+595 981 123456",
+  "contactEmail": "ventas@mitienda.com",
+  "instagramUrl": "https://instagram.com/mitienda",
+  "facebookUrl": "https://facebook.com/mitienda",
+  "address": "Asunción, Paraguay",
+  "businessHours": "Lun a sáb, 09:00 a 18:00",
+  "fontFamily": "Georgia",
+  "headingScale": "large",
+  "borderRadius": "rounded",
+  "spacingDensity": "spacious"
 }
 ```
+
+Todos los campos nuevos son opcionales. Las URLs sociales aceptan solo HTTP/HTTPS. Los valores de
+tema son catálogos cerrados: `FontFamily` = `Inter|Georgia|Trebuchet MS`, `HeadingScale` =
+`compact|normal|large`, `BorderRadius` = `square|rounded`, `SpacingDensity` =
+`compact|normal|spacious`.
 
 **Response 200**: `StoreProfileDto` actualizado.
 
@@ -597,7 +622,10 @@ public record TenantUserDto(
 ```csharp
 public record StoreProfileDto(
     Guid StoreId, string Name, string CurrencyCode, string Timezone,
-    string? PrimaryColor, string? LogoUrl, string? BackgroundColor, string? Description
+    string? PrimaryColor, string? LogoUrl, string? BackgroundColor, string? Description,
+    string? ContactWhatsapp, string? ContactEmail, string? InstagramUrl, string? FacebookUrl,
+    string? Address, string? BusinessHours, string? FontFamily, string? HeadingScale,
+    string? BorderRadius, string? SpacingDensity
 );
 ```
 

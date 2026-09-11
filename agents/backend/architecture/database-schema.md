@@ -92,9 +92,16 @@ Entidad global: no lleva `TenantId` ni las columnas de `AppEntity` (no participa
 | `PrimaryColor` / `BackgroundColor` | `nvarchar(7)` | Sí | Hex color |
 | `LogoUrl` | `nvarchar(500)` | Sí | — |
 | `Description` | `nvarchar(1000)` | Sí | — |
+| `ContactWhatsapp` | `nvarchar(32)` | Sí | Teléfono público validado |
+| `ContactEmail` | `nvarchar(254)` | Sí | Email público, independiente del Owner |
+| `InstagramUrl` / `FacebookUrl` | `nvarchar(500)` | Sí | URL HTTP/HTTPS absoluta |
+| `Address` / `BusinessHours` | `nvarchar(500)` | Sí | Texto libre público |
 | + columnas AppEntity | | | Ver tabla AppEntity arriba |
 
 Índice: `UQ_Stores_TenantId` (`TenantId`, UNIQUE — 1:1 con Tenant en MVP).
+
+`Data` contiene opcionalmente un `StoreTheme` tipado con `FontFamily`, `HeadingScale`,
+`BorderRadius` y `SpacingDensity`. Estos knobs no crean columnas adicionales.
 
 ## Tabla: TenantUsers (implementada)
 

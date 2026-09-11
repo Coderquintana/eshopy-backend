@@ -1,6 +1,7 @@
 using EShopy.Domain.Common.Entities;
 using EShopy.Domain.Common.Errors;
 using EShopy.Domain.Common.Exceptions;
+using System.Net.Mail;
 
 namespace EShopy.Domain.Tenants;
 
@@ -16,9 +17,16 @@ public sealed class Store : AppEntity
     string? logoUrl,
     string? backgroundColor,
     string? description,
+    string? contactWhatsapp,
+    string? contactEmail,
+    string? instagramUrl,
+    string? facebookUrl,
+    string? address,
+    string? businessHours,
     DateTime createdAtUtc,
-    DateTime? updatedAtUtc)
-    : base(id, tenantId, createdAtUtc, createdBy: null, updatedAtUtc, updatedBy: null, data: null)
+    DateTime? updatedAtUtc,
+    string? data)
+    : base(id, tenantId, createdAtUtc, createdBy: null, updatedAtUtc, updatedBy: null, data)
   {
     Name = name;
     CurrencyCode = currencyCode;
@@ -27,6 +35,12 @@ public sealed class Store : AppEntity
     LogoUrl = logoUrl;
     BackgroundColor = backgroundColor;
     Description = description;
+    ContactWhatsapp = contactWhatsapp;
+    ContactEmail = contactEmail;
+    InstagramUrl = instagramUrl;
+    FacebookUrl = facebookUrl;
+    Address = address;
+    BusinessHours = businessHours;
   }
 
   public string Name { get; private set; }
@@ -42,6 +56,14 @@ public sealed class Store : AppEntity
   public string? LogoUrl { get; private set; }
   public string? BackgroundColor { get; private set; }
   public string? Description { get; private set; }
+  public string? ContactWhatsapp { get; private set; }
+  public string? ContactEmail { get; private set; }
+  public string? InstagramUrl { get; private set; }
+  public string? FacebookUrl { get; private set; }
+  public string? Address { get; private set; }
+  public string? BusinessHours { get; private set; }
+
+  public StoreTheme? Theme => GetData<StoreTheme>();
 
   public static Store CreateDefault(Guid tenantId, string name, string currencyCode, DateTime createdAtUtc)
   {
@@ -57,8 +79,15 @@ public sealed class Store : AppEntity
       logoUrl: null,
       backgroundColor: null,
       description: null,
+      contactWhatsapp: null,
+      contactEmail: null,
+      instagramUrl: null,
+      facebookUrl: null,
+      address: null,
+      businessHours: null,
       createdAtUtc,
-      createdAtUtc);
+      createdAtUtc,
+      data: null);
   }
 
   public void UpdateProfile(string name,
@@ -78,6 +107,52 @@ public sealed class Store : AppEntity
     LogoUrl = NormalizeOptional(logoUrl);
     BackgroundColor = NormalizeOptional(backgroundColor);
     Description = NormalizeOptional(description);
+    UpdatedAtUtc = updatedAtUtc;
+  }
+
+  public void UpdateContactInformation(
+    string? contactWhatsapp,
+    string? contactEmail,
+    string? instagramUrl,
+    string? facebookUrl,
+    string? address,
+    string? businessHours,
+    DateTime updatedAtUtc)
+  {
+    EnsurePhone(contactWhatsapp);
+    EnsureEmail(contactEmail);
+    EnsureAbsoluteHttpUrl(instagramUrl, "Instagram");
+    EnsureAbsoluteHttpUrl(facebookUrl, "Facebook");
+    EnsureMaximumLength(address, 500, "La dirección");
+    EnsureMaximumLength(businessHours, 500, "El horario de atención");
+
+    ContactWhatsapp = NormalizeOptional(contactWhatsapp);
+    ContactEmail = NormalizeOptional(contactEmail);
+    InstagramUrl = NormalizeOptional(instagramUrl);
+    FacebookUrl = NormalizeOptional(facebookUrl);
+    Address = NormalizeOptional(address);
+    BusinessHours = NormalizeOptional(businessHours);
+    UpdatedAtUtc = updatedAtUtc;
+  }
+
+  public void UpdateTheme(StoreTheme theme, DateTime updatedAtUtc)
+  {
+    EnsureAllowed(theme.FontFamily, StoreTheme.AllowedFontFamilies, "La tipografía");
+    EnsureAllowed(theme.HeadingScale, StoreTheme.AllowedHeadingScales, "La escala de títulos");
+    EnsureAllowed(theme.BorderRadius, StoreTheme.AllowedBorderRadii, "El estilo de bordes");
+    EnsureAllowed(theme.SpacingDensity, StoreTheme.AllowedSpacingDensities, "La densidad de espaciado");
+
+    var normalized = new StoreTheme(
+      NormalizeAllowed(theme.FontFamily, StoreTheme.AllowedFontFamilies),
+      NormalizeAllowed(theme.HeadingScale, StoreTheme.AllowedHeadingScales),
+      NormalizeAllowed(theme.BorderRadius, StoreTheme.AllowedBorderRadii),
+      NormalizeAllowed(theme.SpacingDensity, StoreTheme.AllowedSpacingDensities));
+
+    if (normalized is { FontFamily: null, HeadingScale: null, BorderRadius: null, SpacingDensity: null })
+      Data = null;
+    else
+      SetData(normalized);
+
     UpdatedAtUtc = updatedAtUtc;
   }
 
@@ -104,6 +179,59 @@ public sealed class Store : AppEntity
   {
     if (string.IsNullOrWhiteSpace(timezone))
       throw new DomainException(ErrorCodes.ValidationError, "El timezone de la tienda es obligatorio.");
+  }
+
+  private static void EnsurePhone(string? phone)
+  {
+    var normalized = NormalizeOptional(phone);
+    if (normalized is null)
+      return;
+
+    if (normalized.Length > 32 || normalized.Count(char.IsAsciiDigit) < 7 ||
+        normalized.Any(character => !char.IsAsciiDigit(character) && character is not '+' and not '-' and not ' ' and not '(' and not ')'))
+      throw new DomainException(ErrorCodes.ValidationError, "El WhatsApp de contacto no tiene un formato válido.");
+  }
+
+  private static void EnsureEmail(string? email)
+  {
+    var normalized = NormalizeOptional(email);
+    if (normalized is null)
+      return;
+
+    if (normalized.Length > 254 || !MailAddress.TryCreate(normalized, out _))
+      throw new DomainException(ErrorCodes.ValidationError, "El email de contacto no tiene un formato válido.");
+  }
+
+  private static void EnsureAbsoluteHttpUrl(string? url, string fieldName)
+  {
+    var normalized = NormalizeOptional(url);
+    if (normalized is null)
+      return;
+
+    if (normalized.Length > 500 || !Uri.TryCreate(normalized, UriKind.Absolute, out var parsed) ||
+        parsed.Scheme is not ("http" or "https"))
+      throw new DomainException(ErrorCodes.ValidationError, $"La URL de {fieldName} debe ser una URL HTTP o HTTPS válida.");
+  }
+
+  private static void EnsureMaximumLength(string? value, int maximumLength, string fieldName)
+  {
+    if (NormalizeOptional(value)?.Length > maximumLength)
+      throw new DomainException(ErrorCodes.ValidationError, $"{fieldName} no puede exceder {maximumLength} caracteres.");
+  }
+
+  private static void EnsureAllowed(string? value, IReadOnlySet<string> allowedValues, string fieldName)
+  {
+    var normalized = NormalizeOptional(value);
+    if (normalized is not null && !allowedValues.Contains(normalized))
+      throw new DomainException(ErrorCodes.ValidationError, $"{fieldName} no es una opción permitida.");
+  }
+
+  private static string? NormalizeAllowed(string? value, IReadOnlySet<string> allowedValues)
+  {
+    var normalized = NormalizeOptional(value);
+    return normalized is null
+      ? null
+      : allowedValues.Single(candidate => candidate.Equals(normalized, StringComparison.OrdinalIgnoreCase));
   }
 
   private static string? NormalizeOptional(string? value)

@@ -46,14 +46,20 @@
 | `LogoUrl` | `string?` | Sí | URL del logo |
 | `BackgroundColor` | `string?` | Sí | Hex color de fondo |
 | `Description` | `string?` | Sí | Descripción pública |
+| `ContactWhatsapp` | `string?` | Sí | WhatsApp público, mínimo 7 dígitos |
+| `ContactEmail` | `string?` | Sí | Email público, independiente del Owner |
+| `InstagramUrl` | `string?` | Sí | URL HTTP/HTTPS absoluta |
+| `FacebookUrl` | `string?` | Sí | URL HTTP/HTTPS absoluta |
+| `Address` | `string?` | Sí | Dirección pública, máximo 500 caracteres |
+| `BusinessHours` | `string?` | Sí | Horario público en texto libre, máximo 500 caracteres |
 
 > En MVP: 1 Store por Tenant. El `StoreId` se resuelve en backend, nunca del request.
 
-> **Extensibilidad cosmética**: estos 6 campos son identidad de negocio (columnas reales,
-> con validación de dominio) y no crecen más así. Cualquier knob puramente cosmético futuro
-> (tipografía, tamaño de texto, etc.) va en un record `StoreTheme` sobre la columna `Data` que
-> `Store` ya hereda de `AppEntity` — mismo patrón que `ProductData` — sin migración nueva por
-> cada uno. Ver `GOVERNANCE.md` "Decisiones de dominio". No implementado todavía.
+> **Extensibilidad cosmética**: los campos de identidad y contacto son columnas reales con
+> validación de dominio. Los knobs cosméticos viven en `StoreTheme`, serializado en `Data`:
+> `FontFamily` (`Inter`, `Georgia`, `Trebuchet MS`), `HeadingScale` (`compact`, `normal`, `large`),
+> `BorderRadius` (`square`, `rounded`) y `SpacingDensity` (`compact`, `normal`, `spacious`).
+> Vaciar los cuatro limpia `Data`; agregar otro knob no requiere una migración.
 
 ## TenantUser — Propiedades
 

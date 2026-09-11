@@ -533,7 +533,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Mi Tienda\",\n  \"timezone\": \"America/Asuncion\",\n  \"primaryColor\": \"#007bff\",\n  \"logoUrl\": \"https://cdn.example.com/logo.png\",\n  \"backgroundColor\": \"#FFFFFF\",\n  \"description\": \"Una tienda de ejemplo\"\n}"
+              "raw": "{\n  \"name\": \"Mi Tienda\",\n  \"timezone\": \"America/Asuncion\",\n  \"primaryColor\": \"#007bff\",\n  \"logoUrl\": \"https://cdn.example.com/logo.png\",\n  \"backgroundColor\": \"#FFFFFF\",\n  \"description\": \"Una tienda de ejemplo\",\n  \"contactWhatsapp\": \"+595 981 123456\",\n  \"contactEmail\": \"ventas@mitienda.com\",\n  \"instagramUrl\": \"https://instagram.com/mitienda\",\n  \"facebookUrl\": \"https://facebook.com/mitienda\",\n  \"address\": \"Asunción, Paraguay\",\n  \"businessHours\": \"Lun a sáb, 09:00 a 18:00\",\n  \"fontFamily\": \"Georgia\",\n  \"headingScale\": \"large\",\n  \"borderRadius\": \"rounded\",\n  \"spacingDensity\": \"spacious\"\n}"
             }
           }
         }

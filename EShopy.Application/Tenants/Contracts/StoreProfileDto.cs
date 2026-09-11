@@ -11,4 +11,14 @@ public sealed class StoreProfileDto
   public string? LogoUrl { get; init; }
   public string? BackgroundColor { get; init; }
   public string? Description { get; init; }
+  public string? ContactWhatsapp { get; init; }
+  public string? ContactEmail { get; init; }
+  public string? InstagramUrl { get; init; }
+  public string? FacebookUrl { get; init; }
+  public string? Address { get; init; }
+  public string? BusinessHours { get; init; }
+  public string? FontFamily { get; init; }
+  public string? HeadingScale { get; init; }
+  public string? BorderRadius { get; init; }
+  public string? SpacingDensity { get; init; }
 }

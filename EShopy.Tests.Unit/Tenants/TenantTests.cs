@@ -83,6 +83,52 @@ public sealed class TenantTests
       .Where(ex => ex.Code == ErrorCodes.ValidationError);
   }
 
+  [Fact]
+  public void StoreUpdateContactInformation_ShouldNormalizePublicBusinessData()
+  {
+    var store = Store.CreateDefault(Guid.NewGuid(), "Mi Tienda", "PYG", DateTime.UtcNow);
+
+    store.UpdateContactInformation(
+      "  +595 981 123456  ",
+      "  ventas@mitienda.com  ",
+      "  https://instagram.com/mitienda  ",
+      "  https://facebook.com/mitienda  ",
+      "  Asunción, Paraguay  ",
+      "  Lun a sáb, 09:00 a 18:00  ",
+      DateTime.UtcNow);
+
+    store.ContactWhatsapp.Should().Be("+595 981 123456");
+    store.ContactEmail.Should().Be("ventas@mitienda.com");
+    store.InstagramUrl.Should().Be("https://instagram.com/mitienda");
+    store.FacebookUrl.Should().Be("https://facebook.com/mitienda");
+    store.Address.Should().Be("Asunción, Paraguay");
+    store.BusinessHours.Should().Be("Lun a sáb, 09:00 a 18:00");
+  }
+
+  [Fact]
+  public void StoreUpdateTheme_ShouldPersistCanonicalAllowedValuesInData()
+  {
+    var store = Store.CreateDefault(Guid.NewGuid(), "Mi Tienda", "PYG", DateTime.UtcNow);
+
+    store.UpdateTheme(new StoreTheme("georgia", "LARGE", "Rounded", "spacious"), DateTime.UtcNow);
+
+    store.Theme.Should().Be(new StoreTheme("Georgia", "large", "rounded", "spacious"));
+    store.Data.Should().NotBeNullOrWhiteSpace();
+  }
+
+  [Fact]
+  public void StoreUpdateTheme_WithUnknownValue_ShouldThrowDomainException()
+  {
+    var store = Store.CreateDefault(Guid.NewGuid(), "Mi Tienda", "PYG", DateTime.UtcNow);
+
+    var act = () => store.UpdateTheme(
+      new StoreTheme("Comic Sans MS", "normal", "rounded", "normal"),
+      DateTime.UtcNow);
+
+    act.Should().Throw<DomainException>()
+      .Where(ex => ex.Code == ErrorCodes.ValidationError);
+  }
+
   // ─── ChangeStatus ─────────────────────────────────────────────────────────
 
   [Fact]

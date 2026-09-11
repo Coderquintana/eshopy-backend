@@ -43,6 +43,16 @@ internal static class TenantMappings
     PrimaryColor = store.PrimaryColor,
     LogoUrl = store.LogoUrl,
     BackgroundColor = store.BackgroundColor,
-    Description = store.Description
+    Description = store.Description,
+    ContactWhatsapp = store.ContactWhatsapp,
+    ContactEmail = store.ContactEmail,
+    InstagramUrl = store.InstagramUrl,
+    FacebookUrl = store.FacebookUrl,
+    Address = store.Address,
+    BusinessHours = store.BusinessHours,
+    FontFamily = store.Theme?.FontFamily,
+    HeadingScale = store.Theme?.HeadingScale,
+    BorderRadius = store.Theme?.BorderRadius,
+    SpacingDensity = store.Theme?.SpacingDensity
   };
 }

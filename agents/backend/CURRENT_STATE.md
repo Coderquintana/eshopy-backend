@@ -1,6 +1,7 @@
 # CURRENT_STATE - Estado actual del codigo
 
-> Actualizado 2026-09-08: membresia de tenant exigida para todo usuario autenticado no SUPERADMIN.
+> Actualizado 2026-09-11: F4-09 amplía Store con identidad de contacto y `StoreTheme` tipado.
+> Antes: membresia de tenant exigida para todo usuario autenticado no SUPERADMIN.
 > Antes de eso: F8-07 (consulta publica del pedido) implementado y verificado en vivo el 2026-09-06,
 > y reauditado 2026-07-26 contra HEAD. Sesion larga: revision de arquitectura + modulo Tenants/Store completo + infra Docker Compose + Carrito + Pedidos + webhook de Pagos (solo faltan los adapters reales Bancard/PagoPar) + bootstrap de DB (B-02) + limpieza de carritos (F6-04) + Serilog/AuditLog (F9-01/F9-03).
 > Refleja el codigo real, no la documentacion ideal. Ver [BACKLOG.md](BACKLOG.md) seccion "DEUDA TECNICA / ARQUITECTURA" para gaps de escalabilidad no listados en la tabla de abajo.
@@ -29,7 +30,7 @@
 | **Core / Infraestructura base** | ? Implementado | Middleware, BaseApiController, ErrorResponse, Result<T>, Global Query Filter, mapeo de `DbUpdateConcurrencyException`/violacion de indice unico a 409. Sin capa de Unit of Work generica a proposito (ver nota D-01 en BACKLOG.md); writers angostos (`ITenantOnboardingWriter`/`ITenantActivationWriter`/`ICheckoutWriter`/`IPaymentWebhookWriter`) para los flujos que escriben varios agregados en una transaccion. Bootstrap de DB en Development (B-02): chequea migraciones pendientes al arrancar. Logging via Serilog (F9-01, ver seccion propia abajo). Auditoria de operaciones sensibles via `AuditLog`/`IAuditLogger` (F9-03, ver seccion propia abajo) |
 | **Auth (Keycloak/JWT)** | ? Completo (Fase 2) | OIDC + RBAC por claim `permissions` + pertenencia activa en `TenantUsers` para el tenant resuelto por Host (`TenantMembershipMiddleware`) + CORS por ambiente + headers de seguridad + UserContextAccessor |
 | **Products (Catalog)** | ? Completo (MVP) | CQRS + Result<T> + SQL pagination + StoreId + transiciones validadas. `ProductService` ya no existe (reemplazado por Commands/Queries). FK reales a Tenants/Stores. RowVersion configurado pero no cableado end-to-end (ver D-03) |
-| **Store** | ? Implementado | `EfStoreService`/`IStoreRepository` reales (reemplazan `InMemoryStoreService`). `GET/PUT /api/store` funcionando. `CurrencyCode` inmutable tras creacion |
+| **Store** | ? Implementado | `GET/PUT /api/store` expone los datos públicos de marca y contacto. Los knobs cosméticos tipados (`FontFamily`, `HeadingScale`, `BorderRadius`, `SpacingDensity`) se guardan en `Data` mediante `StoreTheme`; seis datos de contacto tienen columnas propias. `CurrencyCode` sigue inmutable tras creación |
 | **Tenants** | ? Implementado (Fase 4) | `Tenant`/`TenantUser` reales, maquina de estados completa. `EfTenantResolver` reemplaza el diccionario en memoria (cache ~60s por subdominio). Onboarding (`POST /api/onboarding/tenants`) crea Tenant+Store+Owner(Keycloak)+Subscription atomicamente. Activacion manual SUPERADMIN implementada; webhook de pago sigue en Fase 8. Invitar Admin/Staff (`GET/POST /api/admin/users`) implementado y verificado en vivo (F4-05) |
 | **Subscriptions** | ?? Minimo (Fase 4) | Entidad y maquina de estados completas, se crea en el onboarding. Sin integracion de pago real: `PriceAmount` siempre 0 (precios TBD), sin renovacion automatica ni webhook — todo eso es Fase 8 |
 | **Carts** | ? Implementado (Fase 6, completa) | `Cart`/`CartItem` — primer agregado con coleccion hija encapsulada (`Items` via backing field). `GET/POST/PUT/DELETE /api/cart[/items/{productId}]`, anonimo. Sin precio en `CartItem` (se lee en vivo). `CartCleanupBackgroundService` (F6-04) borra los expirados periodicamente — verificado en vivo |
@@ -273,8 +274,8 @@ Keycloak emita `tenant_id`. Omite requests anonimas, rutas sin `TenantContext` (
 
 | Suite | Tests | Estado |
 |---|---|---|
-| `EShopy.Tests.Unit` | 122 tests | ? (incluye `CartTests`, `CartValidatorTests`, `TenantTests`, `SubscriptionTests`, `TenantValidatorTests`, `InviteTenantUserCommandValidatorTests`, `SubdomainResolverTests`, `OrderTests` (incl. generacion y comparacion de `AccessToken`), `PaymentTests`, `CheckoutCommandValidatorTests`) |
-| `EShopy.Tests.Integration` | 36 tests | ? Incluye seguridad 401/403/200 y membresia multi-tenant (Owner/Admin/Staff, SUPERADMIN, membresia inactiva y rutas anonimas), onboarding, invitacion de usuarios, flujo de carrito, flujo de checkout end-to-end (`CheckoutFlowTests`), flujo de webhook de pagos (`PaymentWebhookFlowTests`: captura, fallo, idempotencia, firma invalida, payment no encontrado) y consulta publica del pedido (`PublicOrderFlowTests`: token correcto, sin filtrar datos personales, token equivocado, token de otro pedido, sin header, pedido inexistente). Sin paralelizar (`AssemblyInfo.cs`), ver `testing/test-strategy.md` |
+| `EShopy.Tests.Unit` | 145 tests | ? Incluye dominio y validación de Store/contacto/tema, además de Products, Carts, Orders, Payments, Tenants y Subscriptions |
+| `EShopy.Tests.Integration` | 46 tests | ? Incluye seguridad y membresía multi-tenant, onboarding, Store público/admin, carrito, checkout, pedidos, webhooks, auditoría y errores del frontend. `StoreProfileFlowTests` comprueba PUT autenticado → GET público con los 16 campos. Sin paralelizar (`AssemblyInfo.cs`), ver `testing/test-strategy.md` |
 
 > F8-07 se verifico ademas en vivo el 2026-09-06 contra SQL Server real: checkout → consulta publica
 > con el token correcto (200), token invalido (404), prefijo del token real (404), sin header (400),
@@ -334,6 +335,7 @@ Soporte de tests:
   - `20260726195952_AddPaymentEventsProcessed`
   - `20260726205016_AddAuditLogs`
   - `20260906184703_AddOrderAccessToken`
+  - `20260911225052_AddStoreProfileCustomization`
 - Si se elimina manualmente una tabla, EF no la recrea al iniciar mientras `__EFMigrationsHistory` siga marcado; ejecutar `dotnet ef database update` con historial consistente. B-02 (resuelto): la API ahora detecta esto al arrancar en Development y falla con un mensaje claro en vez de un error de SQL confuso mas adelante.
 
 ---

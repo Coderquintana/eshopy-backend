@@ -49,6 +49,30 @@ public sealed class StoreConfiguration : IEntityTypeConfiguration<Store>
       .HasMaxLength(1000)
       .HasComment("Descripcion publica de la tienda.");
 
+    builder.Property(s => s.ContactWhatsapp)
+      .HasMaxLength(32)
+      .HasComment("Numero de WhatsApp publico de la tienda.");
+
+    builder.Property(s => s.ContactEmail)
+      .HasMaxLength(254)
+      .HasComment("Email de contacto publico de la tienda, independiente del owner.");
+
+    builder.Property(s => s.InstagramUrl)
+      .HasMaxLength(500)
+      .HasComment("URL absoluta del perfil de Instagram de la tienda.");
+
+    builder.Property(s => s.FacebookUrl)
+      .HasMaxLength(500)
+      .HasComment("URL absoluta del perfil de Facebook de la tienda.");
+
+    builder.Property(s => s.Address)
+      .HasMaxLength(500)
+      .HasComment("Direccion publica de la tienda en texto libre.");
+
+    builder.Property(s => s.BusinessHours)
+      .HasMaxLength(500)
+      .HasComment("Horario publico de atencion en texto libre.");
+
     builder.Property(s => s.CreatedAtUtc)
       .HasColumnType("datetime2")
       .HasComment("Fecha de creacion en UTC.");
