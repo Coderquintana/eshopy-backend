@@ -117,6 +117,12 @@ Mapeo recomendado por rol:
 - `TENANT_ADMIN`: `store.read`, `catalog.*`, `orders.*`, `payments.read`
 - `TENANT_STAFF`: `store.read`, `catalog.read`, `orders.read`
 
+**Esto está implementado como roles compuestos** (`composite: true` en `realm-eshopy.json`), no como
+convención a mano: asignar `TENANT_OWNER` a un usuario alcanza, Keycloak resuelve los permisos finos
+de la lista de arriba al emitir el token. `KeycloakAdminClient` (onboarding) solo asigna el rol de
+grupo — si algún día un permiso de la matriz cambia, se edita el `composites` del rol acá, no el
+código C#. Bug real que esto arregló: ver `BACKLOG.md` C-62.
+
 ## 4) Config backend
 
 En `EShopy.Api/appsettings.Development.json`:

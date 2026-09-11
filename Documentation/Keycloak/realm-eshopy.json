@@ -11,21 +11,115 @@
   "rememberMe": true,
   "roles": {
     "realm": [
-      { "name": "ESHOPY_SUPERADMIN", "description": "Administracion global del SaaS." },
-      { "name": "TENANT_OWNER", "description": "Propietario del tenant." },
-      { "name": "TENANT_ADMIN", "description": "Administrador del tenant." },
-      { "name": "TENANT_STAFF", "description": "Staff operativo del tenant." },
-      { "name": "tenants.read", "description": "Permiso: leer tenants." },
-      { "name": "tenants.write", "description": "Permiso: modificar tenants." },
-      { "name": "store.read", "description": "Permiso: leer configuracion de tienda." },
-      { "name": "store.write", "description": "Permiso: modificar configuracion de tienda." },
-      { "name": "catalog.read", "description": "Permiso: leer catalogo." },
-      { "name": "catalog.write", "description": "Permiso: modificar catalogo." },
-      { "name": "orders.read", "description": "Permiso: leer pedidos." },
-      { "name": "orders.write", "description": "Permiso: modificar pedidos." },
-      { "name": "payments.read", "description": "Permiso: leer pagos." },
-      { "name": "users.manage", "description": "Permiso: administrar usuarios." },
-      { "name": "billing.manage", "description": "Permiso: administrar billing." }
+      {
+        "name": "ESHOPY_SUPERADMIN",
+        "description": "Administracion global del SaaS.",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "tenants.read",
+            "tenants.write",
+            "store.read",
+            "store.write",
+            "catalog.read",
+            "catalog.write",
+            "orders.read",
+            "orders.write",
+            "payments.read",
+            "users.manage",
+            "billing.manage"
+          ]
+        }
+      },
+      {
+        "name": "TENANT_OWNER",
+        "description": "Propietario del tenant.",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "store.read",
+            "store.write",
+            "catalog.read",
+            "catalog.write",
+            "orders.read",
+            "orders.write",
+            "payments.read",
+            "users.manage",
+            "billing.manage"
+          ]
+        }
+      },
+      {
+        "name": "TENANT_ADMIN",
+        "description": "Administrador del tenant.",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "store.read",
+            "catalog.read",
+            "catalog.write",
+            "orders.read",
+            "orders.write",
+            "payments.read"
+          ]
+        }
+      },
+      {
+        "name": "TENANT_STAFF",
+        "description": "Staff operativo del tenant.",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "store.read",
+            "catalog.read",
+            "orders.read"
+          ]
+        }
+      },
+      {
+        "name": "tenants.read",
+        "description": "Permiso: leer tenants."
+      },
+      {
+        "name": "tenants.write",
+        "description": "Permiso: modificar tenants."
+      },
+      {
+        "name": "store.read",
+        "description": "Permiso: leer configuracion de tienda."
+      },
+      {
+        "name": "store.write",
+        "description": "Permiso: modificar configuracion de tienda."
+      },
+      {
+        "name": "catalog.read",
+        "description": "Permiso: leer catalogo."
+      },
+      {
+        "name": "catalog.write",
+        "description": "Permiso: modificar catalogo."
+      },
+      {
+        "name": "orders.read",
+        "description": "Permiso: leer pedidos."
+      },
+      {
+        "name": "orders.write",
+        "description": "Permiso: modificar pedidos."
+      },
+      {
+        "name": "payments.read",
+        "description": "Permiso: leer pagos."
+      },
+      {
+        "name": "users.manage",
+        "description": "Permiso: administrar usuarios."
+      },
+      {
+        "name": "billing.manage",
+        "description": "Permiso: administrar billing."
+      }
     ]
   },
   "defaultRoles": [
@@ -43,7 +137,11 @@
       "lastName": "Admin",
       "email": "superadmin@eshopy.local",
       "credentials": [
-        { "type": "password", "value": "Admin123!", "temporary": false }
+        {
+          "type": "password",
+          "value": "Admin123!",
+          "temporary": false
+        }
       ],
       "realmRoles": [
         "ESHOPY_SUPERADMIN",
@@ -71,7 +169,11 @@
       "lastName": "Owner",
       "email": "owner@tenant1.local",
       "credentials": [
-        { "type": "password", "value": "Admin123!", "temporary": false }
+        {
+          "type": "password",
+          "value": "Admin123!",
+          "temporary": false
+        }
       ],
       "realmRoles": [
         "TENANT_OWNER",
@@ -94,7 +196,11 @@
       "lastName": "Admin",
       "email": "admin@tenant1.local",
       "credentials": [
-        { "type": "password", "value": "Admin123!", "temporary": false }
+        {
+          "type": "password",
+          "value": "Admin123!",
+          "temporary": false
+        }
       ],
       "realmRoles": [
         "TENANT_ADMIN",
@@ -114,7 +220,11 @@
       "lastName": "Staff",
       "email": "staff@tenant1.local",
       "credentials": [
-        { "type": "password", "value": "Admin123!", "temporary": false }
+        {
+          "type": "password",
+          "value": "Admin123!",
+          "temporary": false
+        }
       ],
       "realmRoles": [
         "TENANT_STAFF",
@@ -182,7 +292,11 @@
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256"
-      }
+      },
+      "defaultClientScopes": [
+        "profile",
+        "email"
+      ]
     }
   ],
   "clientScopes": [
@@ -274,6 +388,101 @@
             "included.client.audience": "eshopy-api",
             "id.token.claim": "true",
             "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "email",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "email",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "config": {
+            "user.attribute": "email",
+            "claim.name": "email",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "email verified",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "config": {
+            "user.attribute": "emailVerified",
+            "claim.name": "email_verified",
+            "jsonType.label": "boolean",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "profile",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "username",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "config": {
+            "user.attribute": "username",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "given name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "config": {
+            "user.attribute": "firstName",
+            "claim.name": "given_name",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "family name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "config": {
+            "user.attribute": "lastName",
+            "claim.name": "family_name",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "full name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-full-name-mapper",
+          "config": {
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
           }
         }
       ]
