@@ -199,6 +199,9 @@
                   "const json = pm.response.json();",
                   "if (json && json.tenantId) {",
                   "  pm.environment.set('tenantId', json.tenantId);",
+                  "}",
+                  "if (json && json.ownerTemporaryPassword) {",
+                  "  pm.environment.set('ownerTemporaryPassword', json.ownerTemporaryPassword);",
                   "}"
                 ]
               }

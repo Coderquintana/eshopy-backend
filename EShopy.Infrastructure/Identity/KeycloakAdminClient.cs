@@ -16,7 +16,7 @@ namespace EShopy.Infrastructure.Identity;
 /// </summary>
 public sealed class KeycloakAdminClient(HttpClient httpClient, IConfiguration configuration) : IKeycloakUserProvisioner
 {
-  public async Task<string> CreateUserAsync(string email, string name, string subdomain, TenantUserRole role, CancellationToken ct)
+  public async Task<KeycloakUserProvisioningResult> CreateUserAsync(string email, string name, string subdomain, TenantUserRole role, CancellationToken ct)
   {
     var keycloak = configuration.GetSection("Keycloak");
     var adminBaseUrl = (keycloak["AdminBaseUrl"] ?? throw MissingConfig("Keycloak:AdminBaseUrl")).TrimEnd('/');
@@ -25,10 +25,10 @@ public sealed class KeycloakAdminClient(HttpClient httpClient, IConfiguration co
     var realmRole = RealmRoleFor(role);
 
     var accessToken = await GetAdminAccessTokenAsync(keycloak, authority, ct);
-    var userId = await CreateKeycloakUserAsync(adminBaseUrl, realm, accessToken, email, name, ct);
+    var (userId, temporaryPassword) = await CreateKeycloakUserAsync(adminBaseUrl, realm, accessToken, email, name, ct);
     await AssignRealmRoleAsync(adminBaseUrl, realm, accessToken, userId, realmRole, ct);
 
-    return userId;
+    return new KeycloakUserProvisioningResult(userId, temporaryPassword);
   }
 
   private static string RealmRoleFor(TenantUserRole role) => role switch
@@ -63,9 +63,10 @@ public sealed class KeycloakAdminClient(HttpClient httpClient, IConfiguration co
       ?? throw new DomainException(ErrorCodes.ExternalServiceError, "Keycloak no devolvio un access_token valido.");
   }
 
-  private async Task<string> CreateKeycloakUserAsync(string adminBaseUrl, string realm, string accessToken, string email, string name, CancellationToken ct)
+  private async Task<(string UserId, string TemporaryPassword)> CreateKeycloakUserAsync(string adminBaseUrl, string realm, string accessToken, string email, string name, CancellationToken ct)
   {
     var (firstName, lastName) = SplitName(name);
+    var temporaryPassword = Guid.NewGuid().ToString("N");
 
     using var request = new HttpRequestMessage(HttpMethod.Post, $"{adminBaseUrl}/admin/realms/{realm}/users");
     request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -79,7 +80,7 @@ public sealed class KeycloakAdminClient(HttpClient httpClient, IConfiguration co
       emailVerified = false,
       credentials = new[]
       {
-        new { type = "password", value = Guid.NewGuid().ToString("N"), temporary = true }
+        new { type = "password", value = temporaryPassword, temporary = true }
       }
     });
 
@@ -94,7 +95,7 @@ public sealed class KeycloakAdminClient(HttpClient httpClient, IConfiguration co
     var location = response.Headers.Location
       ?? throw new DomainException(ErrorCodes.ExternalServiceError, "Keycloak no devolvio la ubicacion del usuario creado.");
 
-    return location.Segments[^1];
+    return (location.Segments[^1], temporaryPassword);
   }
 
   private async Task AssignRealmRoleAsync(string adminBaseUrl, string realm, string accessToken, string userId, string realmRole, CancellationToken ct)

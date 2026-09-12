@@ -235,12 +235,19 @@ Subscription (PendingActivation). Excluido de `TenantResolutionMiddleware` (no r
 {
   "tenantId": "aaaaaaaa-...",
   "subdomain": "mitienda",
-  "status": "PendingPayment"
+  "status": "PendingPayment",
+  "ownerTemporaryPassword": "38ceb2b4574f4b0daf2d30c476d1dbc7"
 }
 ```
 
 > No incluye `paymentUrl`: el modulo de Payments (Fase 8) todavia no existe. Ver
 > `POST /api/admin/tenants/{id}/activate` para la activacion disponible hoy.
+>
+> `ownerTemporaryPassword` (D-06): la password que Keycloak le asigno al Owner
+> (`temporary: true`, fuerza a cambiarla en el primer login). El backend la devuelve UNA SOLA
+> VEZ, aca — no se persiste en texto plano ni hay forma de recuperarla despues. Sin SMTP
+> configurado, es responsabilidad de quien llama a este endpoint entregarsela al Owner por
+> fuera (hoy, a mano).
 
 **Errores**: `VALIDATION_ERROR` (400), `CONFLICT` si el subdominio ya existe (409),
 `EXTERNAL_SERVICE_ERROR` si falla la creacion del usuario en Keycloak (502).
@@ -620,7 +627,7 @@ public record PagedResult<T>(
 
 ### TenantOnboardingResultDto
 ```csharp
-public record TenantOnboardingResultDto(Guid TenantId, string Subdomain, string Status);
+public record TenantOnboardingResultDto(Guid TenantId, string Subdomain, string Status, string OwnerTemporaryPassword);
 ```
 
 ### TenantAdminDto

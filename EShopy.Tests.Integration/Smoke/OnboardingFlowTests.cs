@@ -37,6 +37,7 @@ public sealed class OnboardingFlowTests : IClassFixture<SecurityWebApplicationFa
     var created = await createResponse.Content.ReadFromJsonAsync<TenantOnboardingResultDto>();
     created.Should().NotBeNull();
     created!.Status.Should().Be("PendingPayment");
+    created.OwnerTemporaryPassword.Should().NotBeNullOrWhiteSpace();
 
     var superadminToken = TestJwtTokenFactory.CreateToken(
       permissions: ["tenants.write", "tenants.read"],

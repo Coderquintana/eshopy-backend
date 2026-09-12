@@ -34,7 +34,7 @@ public sealed class CreateTenantCommandHandler(
 
     // 3. Crear al Owner en Keycloak ANTES de escribir en la base local: si esto falla, no queda
     //    un Tenant huerfano sin usuario (evita necesitar una transaccion compensatoria).
-    var keycloakUserId = await keycloakProvisioner.CreateUserAsync(
+    var provisioning = await keycloakProvisioner.CreateUserAsync(
       command.OwnerEmail, command.OwnerName, normalizedSubdomain, TenantUserRole.Owner, ct);
 
     // 4. Crear y persistir Tenant + Store + TenantUser(Owner) + Subscription en una transaccion
@@ -43,13 +43,14 @@ public sealed class CreateTenantCommandHandler(
       var now = DateTime.UtcNow;
       var tenant = Tenant.Create(normalizedSubdomain, command.BusinessName, plan, now);
       var store = Store.CreateDefault(tenant.Id, command.BusinessName, command.CurrencyCode, now);
-      var owner = TenantUser.Create(tenant.Id, keycloakUserId, command.OwnerEmail, command.OwnerName, TenantUserRole.Owner, now);
+      var owner = TenantUser.Create(tenant.Id, provisioning.UserId, command.OwnerEmail, command.OwnerName, TenantUserRole.Owner, now);
 
       var (price, subscriptionCurrencyCode) = PlanPricing.For(plan);
       var subscription = Subscription.CreatePending(tenant.Id, plan, price, subscriptionCurrencyCode, now);
 
       await onboardingWriter.CreateAsync(tenant, store, owner, subscription, ct);
-      return Result<TenantOnboardingResultDto>.Ok(TenantMappings.ToOnboardingResultDto(tenant));
+      return Result<TenantOnboardingResultDto>.Ok(
+        TenantMappings.ToOnboardingResultDto(tenant, provisioning.TemporaryPassword));
     }
     catch (DomainException ex)
     {

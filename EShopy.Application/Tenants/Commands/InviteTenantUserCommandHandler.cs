@@ -39,13 +39,15 @@ public sealed class InviteTenantUserCommandHandler(
       return Result<TenantUserDto>.Fail(ErrorCodes.Conflict, "Ya existe un usuario con ese email en este tenant.");
 
     // 3. Crear el usuario en Keycloak ANTES de escribir en la base local
-    var keycloakUserId = await keycloakProvisioner.CreateUserAsync(
+    var provisioning = await keycloakProvisioner.CreateUserAsync(
       normalizedEmail, command.Name, tenantContext.Subdomain, role, ct);
 
     // 4. Crear y persistir el TenantUser
+    // NOTA: `provisioning.TemporaryPassword` no se entrega hoy (mismo D-06 que el onboarding,
+    // no encarado aca a proposito: esta tarea solo cubria POST /api/onboarding/tenants).
     try
     {
-      var tenantUser = TenantUser.Create(tenantId, keycloakUserId, normalizedEmail, command.Name, role, DateTime.UtcNow);
+      var tenantUser = TenantUser.Create(tenantId, provisioning.UserId, normalizedEmail, command.Name, role, DateTime.UtcNow);
       await repository.AddAsync(tenantUser, ct);
       await auditLogger.LogAsync(tenantId, "TenantUser.Invite", "TenantUser", tenantUser.Id, $"{normalizedEmail} ({role})", ct);
       return Result<TenantUserDto>.Ok(TenantMappings.ToUserDto(tenantUser));

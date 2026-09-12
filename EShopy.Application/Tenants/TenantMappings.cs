@@ -6,11 +6,12 @@ namespace EShopy.Application.Tenants;
 /// <summary>Mapeos compartidos entre Tenant/Store (dominio) y sus DTOs de aplicación.</summary>
 internal static class TenantMappings
 {
-  internal static TenantOnboardingResultDto ToOnboardingResultDto(Tenant tenant) => new()
+  internal static TenantOnboardingResultDto ToOnboardingResultDto(Tenant tenant, string ownerTemporaryPassword) => new()
   {
     TenantId = tenant.Id,
     Subdomain = tenant.Subdomain,
-    Status = tenant.Status.ToString()
+    Status = tenant.Status.ToString(),
+    OwnerTemporaryPassword = ownerTemporaryPassword
   };
 
   internal static TenantAdminDto ToAdminDto(Tenant tenant) => new()
