@@ -43,6 +43,10 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
       .HasMaxLength(5000)
       .HasComment("Descripcion larga del producto.");
 
+    builder.Property(p => p.ImageUrl)
+      .HasMaxLength(2048)
+      .HasComment("URL publica de la unica imagen del producto.");
+
     builder.Property(p => p.Price)
       .HasColumnType("decimal(18,2)")
       .HasComment("Precio unitario del producto.");

@@ -477,6 +477,44 @@
           }
         },
         {
+          "name": "Upload Product Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products/{{id}}/image",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "{{id}}",
+                "image"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "rowVersion",
+                  "value": "paste-current-product-row-version",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        },
+        {
           "name": "Change Product Status",
           "request": {
             "method": "PATCH",

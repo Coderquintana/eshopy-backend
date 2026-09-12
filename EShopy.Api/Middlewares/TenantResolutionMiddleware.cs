@@ -16,7 +16,8 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next)
     "/api/client-errors",
     "/api/onboarding/tenants",
     "/api/admin/tenants",
-    "/api/payments/webhooks"
+    "/api/payments/webhooks",
+    "/uploads/products"
   ];
 
   public async Task Invoke(HttpContext ctx, TenantContext tenantContext, ITenantResolver tenantResolver, ILogger<TenantResolutionMiddleware> log)

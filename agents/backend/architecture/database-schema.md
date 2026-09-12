@@ -49,6 +49,7 @@ Todas las tablas multi-tenant incluyen estas columnas:
 | `Sku` | `nvarchar(64)` | Sí | — |
 | `Name` | `nvarchar(300)` | No | — |
 | `Description` | `nvarchar(max)` | Sí | — |
+| `ImageUrl` | `nvarchar(2048)` | Sí | URL pública relativa de la única imagen procesada |
 | `Price` | `decimal(18,2)` | No | CHECK >= 0 |
 | `CurrencyCode` | `nvarchar(3)` | No | — |
 | `Status` | `int` | No | 0=Draft, 1=Active, 2=Archived |

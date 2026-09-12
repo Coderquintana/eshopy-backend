@@ -13,6 +13,7 @@ public sealed class ProductsController(
   CreateProductCommandHandler createHandler,
   UpdateProductCommandHandler updateHandler,
   ChangeProductStatusCommandHandler changeStatusHandler,
+  UploadProductImageCommandHandler uploadImageHandler,
   GetProductsQueryHandler getProductsHandler,
   GetProductByIdQueryHandler getByIdHandler) : BaseApiController
 {
@@ -79,6 +80,34 @@ public sealed class ProductsController(
   public async Task<ActionResult<ProductAdminDto>> ChangeStatus(Guid id, [FromBody] ChangeProductStatusCommand command, CancellationToken ct)
   {
     var result = await changeStatusHandler.Handle(command with { Id = id }, ct);
+    return FromResult(result);
+  }
+
+  /// <summary>Sube o reemplaza la única imagen pública de un producto.</summary>
+  [HttpPost("{id:guid}/image")]
+  [Authorize(Policy = "CatalogWrite")]
+  [Consumes("multipart/form-data")]
+  [RequestFormLimits(MultipartBodyLengthLimit = 6 * 1024 * 1024)]
+  [RequestSizeLimit(6 * 1024 * 1024)]
+  [ProducesResponseType(typeof(ProductAdminDto), StatusCodes.Status200OK)]
+  [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
+  [ProducesResponseType(typeof(object), StatusCodes.Status404NotFound)]
+  [ProducesResponseType(typeof(object), StatusCodes.Status409Conflict)]
+  public async Task<ActionResult<ProductAdminDto>> UploadImage(
+    Guid id,
+    [FromForm] IFormFile? file,
+    [FromForm] string? rowVersion,
+    CancellationToken ct)
+  {
+    await using var content = file?.OpenReadStream() ?? Stream.Null;
+    var command = new UploadProductImageCommand(
+      id,
+      content,
+      file?.FileName ?? string.Empty,
+      file?.ContentType ?? string.Empty,
+      file?.Length ?? 0,
+      rowVersion ?? string.Empty);
+    var result = await uploadImageHandler.Handle(command, ct);
     return FromResult(result);
   }
 }

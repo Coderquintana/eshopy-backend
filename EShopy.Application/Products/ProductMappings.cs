@@ -13,6 +13,7 @@ internal static class ProductMappings
     Sku = product.Sku,
     Name = product.Name,
     Description = product.Description,
+    ImageUrl = product.ImageUrl,
     Price = product.Price,
     CurrencyCode = product.CurrencyCode,
     Status = product.Status.ToString(),
@@ -28,6 +29,7 @@ internal static class ProductMappings
     Slug = product.Slug,
     Name = product.Name,
     Description = product.Description,
+    ImageUrl = product.ImageUrl,
     Price = product.Price,
     CurrencyCode = product.CurrencyCode
   };

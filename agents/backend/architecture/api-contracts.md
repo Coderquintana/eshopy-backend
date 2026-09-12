@@ -147,6 +147,28 @@ Cambiar estado del producto.
 
 ---
 
+### POST /api/products/{id:guid}/image
+Subir o reemplazar la única imagen del producto.
+
+**Auth**: `CatalogWrite`
+
+**Content-Type**: `multipart/form-data`
+
+| Campo | Tipo | Regla |
+|---|---|---|
+| `file` | archivo | JPEG, PNG o WebP; máximo 5 MB |
+| `rowVersion` | string | RowVersion Base64 actual del producto |
+
+El servidor verifica el formato real, corrige orientación, limita el lado mayor
+a 1200 px y guarda WebP. Si el producto cambia concurrentemente, elimina el
+archivo recién creado y responde 409. Al reemplazar con éxito, retira la imagen
+local anterior.
+
+**Response 200**: `ProductAdminDto` actualizado, con `imageUrl` y nuevo
+`rowVersion`.
+
+---
+
 ## Catalog — Storefront endpoints
 
 ### GET /api/public/products
@@ -573,7 +595,7 @@ public record CartItemDto(
 ```csharp
 public record ProductAdminDto(
     Guid Id, string Slug, string? Sku, string Name,
-    string? Description, decimal Price, string CurrencyCode,
+    string? Description, string? ImageUrl, decimal Price, string CurrencyCode,
     ProductStatus Status, int StockOnHand,
     DateTime CreatedAtUtc, DateTime? UpdatedAtUtc
 );
@@ -583,7 +605,7 @@ public record ProductAdminDto(
 ```csharp
 public record ProductPublicDto(
     Guid Id, string Slug, string Name,
-    string? Description, decimal Price, string CurrencyCode
+    string? Description, string? ImageUrl, decimal Price, string CurrencyCode
 );
 ```
 

@@ -7,6 +7,7 @@ public sealed class ProductAdminDto
   public string? Sku { get; init; }
   public required string Name { get; init; }
   public string? Description { get; init; }
+  public string? ImageUrl { get; init; }
   public required decimal Price { get; init; }
   public required string CurrencyCode { get; init; }
   public required string Status { get; init; }

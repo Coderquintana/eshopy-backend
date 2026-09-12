@@ -5,9 +5,11 @@ using EShopy.Application.Common.Context;
 using EShopy.Infrastructure;
 using EShopy.Infrastructure.Identity;
 using EShopy.Infrastructure.Persistence;
+using EShopy.Infrastructure.Products;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
 using Serilog;
 
@@ -222,6 +224,16 @@ try
       context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
 
     await next();
+  });
+
+  var productImagesRoot = ProductImageStoragePaths.ResolveRoot(app.Environment.ContentRootPath);
+  Directory.CreateDirectory(productImagesRoot);
+  app.UseStaticFiles(new StaticFileOptions
+  {
+    FileProvider = new PhysicalFileProvider(productImagesRoot),
+    RequestPath = ProductImageStoragePaths.RequestPath,
+    OnPrepareResponse = context =>
+      context.Context.Response.Headers.CacheControl = "public,max-age=31536000,immutable"
   });
 
   app.UseAuthentication();

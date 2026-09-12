@@ -1,6 +1,6 @@
 # CURRENT_STATE - Estado actual del codigo
 
-> Actualizado 2026-09-11: F4-09 amplía Store con identidad de contacto y `StoreTheme` tipado.
+> Actualizado 2026-09-12: F5-04 incorpora subida y procesamiento de imágenes de producto.
 > Antes: membresia de tenant exigida para todo usuario autenticado no SUPERADMIN.
 > Antes de eso: F8-07 (consulta publica del pedido) implementado y verificado en vivo el 2026-09-06,
 > y reauditado 2026-07-26 contra HEAD. Sesion larga: revision de arquitectura + modulo Tenants/Store completo + infra Docker Compose + Carrito + Pedidos + webhook de Pagos (solo faltan los adapters reales Bancard/PagoPar) + bootstrap de DB (B-02) + limpieza de carritos (F6-04) + Serilog/AuditLog (F9-01/F9-03).
@@ -29,7 +29,7 @@
 |---|---|---|
 | **Core / Infraestructura base** | ? Implementado | Middleware, BaseApiController, ErrorResponse, Result<T>, Global Query Filter, mapeo de `DbUpdateConcurrencyException`/violacion de indice unico a 409. Sin capa de Unit of Work generica a proposito (ver nota D-01 en BACKLOG.md); writers angostos (`ITenantOnboardingWriter`/`ITenantActivationWriter`/`ICheckoutWriter`/`IPaymentWebhookWriter`) para los flujos que escriben varios agregados en una transaccion. Bootstrap de DB en Development (B-02): chequea migraciones pendientes al arrancar. Logging via Serilog (F9-01, ver seccion propia abajo). Auditoria de operaciones sensibles via `AuditLog`/`IAuditLogger` (F9-03, ver seccion propia abajo) |
 | **Auth (Keycloak/JWT)** | ? Completo (Fase 2) | OIDC + RBAC por claim `permissions` + pertenencia activa en `TenantUsers` para el tenant resuelto por Host (`TenantMembershipMiddleware`) + CORS por ambiente + headers de seguridad + UserContextAccessor |
-| **Products (Catalog)** | ? Completo (MVP) | CQRS + Result<T> + SQL pagination + StoreId + transiciones validadas. `ProductService` ya no existe (reemplazado por Commands/Queries). FK reales a Tenants/Stores. RowVersion configurado pero no cableado end-to-end (ver D-03) |
+| **Products (Catalog)** | ✅ Completo (F5-04) | CQRS + Result<T> + SQL pagination + StoreId + transiciones validadas y RowVersion end-to-end. F5-04 agrega una imagen por producto, subida multipart protegida y storage local procesado |
 | **Store** | ? Implementado | `GET/PUT /api/store` expone los datos públicos de marca y contacto. Los knobs cosméticos tipados (`FontFamily`, `HeadingScale`, `BorderRadius`, `SpacingDensity`) se guardan en `Data` mediante `StoreTheme`; seis datos de contacto tienen columnas propias. `CurrencyCode` sigue inmutable tras creación |
 | **Tenants** | ? Implementado (Fase 4) | `Tenant`/`TenantUser` reales, maquina de estados completa. `EfTenantResolver` reemplaza el diccionario en memoria (cache ~60s por subdominio). Onboarding (`POST /api/onboarding/tenants`) crea Tenant+Store+Owner(Keycloak)+Subscription atomicamente. Activacion manual SUPERADMIN implementada; webhook de pago sigue en Fase 8. Invitar Admin/Staff (`GET/POST /api/admin/users`) implementado y verificado en vivo (F4-05) |
 | **Subscriptions** | ?? Minimo (Fase 4) | Entidad y maquina de estados completas, se crea en el onboarding. Sin integracion de pago real: `PriceAmount` siempre 0 (precios TBD), sin renovacion automatica ni webhook — todo eso es Fase 8 |

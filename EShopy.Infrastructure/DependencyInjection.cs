@@ -65,6 +65,7 @@ public static class DependencyInjection
 
     // Repositorios — Catalog
     services.AddScoped<IProductRepository, EfProductRepository>();
+    services.AddSingleton<IProductImageStorage, LocalDiskImageStorage>();
 
     // Carts
     services.AddScoped<ICartRepository, EfCartRepository>();
@@ -89,6 +90,7 @@ public static class DependencyInjection
     services.AddScoped<CreateProductCommandHandler>();
     services.AddScoped<UpdateProductCommandHandler>();
     services.AddScoped<ChangeProductStatusCommandHandler>();
+    services.AddScoped<UploadProductImageCommandHandler>();
 
     // Handlers de productos — Queries
     services.AddScoped<GetProductsQueryHandler>();

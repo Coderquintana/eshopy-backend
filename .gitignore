@@ -28,6 +28,9 @@ Thumbs.db
 # Logs
 *.log
 
+# Archivos subidos en desarrollo
+App_Data/
+
 # Generated documentation artifacts (optional)
 # Uncomment if you don't want compiled docs under version control
 # documentation.md

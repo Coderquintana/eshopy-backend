@@ -13,6 +13,7 @@
 | `Sku` | `string?` | Sí | Uppercase, máx 64 chars, único por tenant si presente |
 | `Name` | `string` | No | Trim obligatorio |
 | `Description` | `string?` | Sí | Trim o null si vacío |
+| `ImageUrl` | `string?` | Sí | URL relativa del archivo público procesado; una imagen por producto |
 | `Price` | `decimal` | No | `>= 0` |
 | `CurrencyCode` | `string` | No | Tomado del Store; no en request. Uppercase, trim |
 | `Status` | `ProductStatus` | No | Ver tabla de estados |
@@ -63,7 +64,7 @@ si no es válida. No hay validación de transición en el handler.
 `Product` hereda `RowVersion` (rowversion SQL) de `AppEntity`. El flujo completo:
 
 1. `ProductAdminDto.RowVersion` expone el rowversion actual codificado en Base64 (`ProductConcurrency.Encode`).
-2. El admin manda ese mismo valor de vuelta en `UpdateProductCommand.RowVersion` / `ChangeProductStatusCommand.RowVersion`.
+2. El admin manda ese mismo valor de vuelta en `UpdateProductCommand.RowVersion`, `ChangeProductStatusCommand.RowVersion` o `UploadProductImageCommand.RowVersion`.
 3. El handler lo decodifica (`ProductConcurrency.Decode`) y compara contra el `RowVersion` real del producto
    (`ProductConcurrency.Matches`, comparación en tiempo constante).
 4. Si no coincide → `Result.Fail(ErrorCodes.ConcurrencyConflict)` → 409, sin tocar la entidad.
@@ -107,6 +108,9 @@ product.UpdateDetails(
 
 // Cambiar estado (valida la transición, tira DomainException si no es válida)
 product.ChangeStatus(newStatus: ProductStatus, updatedAtUtc: DateTime)
+
+// Reemplazar la referencia luego de que el storage validó y guardó el archivo
+product.SetImageUrl(imageUrl: string, updatedAtUtc: DateTime)
 ```
 
 ## ProductData (campo JSON extensible)
@@ -128,8 +132,8 @@ var data = product.DataJson; // ProductData?
 
 | DTO | Usado por | Campos |
 |---|---|---|
-| `ProductAdminDto` | Endpoints admin | Id, Slug, Sku, Name, Description, Price, CurrencyCode, Status, StockOnHand, **RowVersion**, CreatedAtUtc, UpdatedAtUtc |
-| `ProductPublicDto` | Endpoints públicos | Id, Slug, Name, Description, Price, CurrencyCode |
+| `ProductAdminDto` | Endpoints admin | Id, Slug, Sku, Name, Description, ImageUrl, Price, CurrencyCode, Status, StockOnHand, **RowVersion**, CreatedAtUtc, UpdatedAtUtc |
+| `ProductPublicDto` | Endpoints públicos | Id, Slug, Name, Description, ImageUrl, Price, CurrencyCode |
 
 ## Commands / Queries (CQRS liviano, un handler por caso de uso)
 
@@ -141,6 +145,7 @@ No existe un `ProductService` monolítico — cada caso de uso es un command/que
 | `CreateProductCommand` | Slug, Sku?, Name, Description?, Price, StockOnHand | `StoreId` y `CurrencyCode` los resuelve el handler vía `IStoreService`, no vienen del request |
 | `UpdateProductCommand` | Id, Name, Description?, Price, StockOnHand, Sku?, **RowVersion** | `RowVersion` obligatorio para concurrencia |
 | `ChangeProductStatusCommand` | Id, Status, **RowVersion** | Idem |
+| `UploadProductImageCommand` | Id, stream, nombre, MIME, tamaño, **RowVersion** | Valida JPEG/PNG/WebP y 5 MB; storage normaliza a WebP de máximo 1200 px |
 | `GetProductByIdQuery` / `GetProductBySlugQuery` | — | Admin y público respectivamente |
 | `GetProductsQuery` (admin, `PagedQuery`) / `GetPublicProductsQuery` (solo `Active`) | — | Paginación resuelta en SQL vía `IProductRepository` |
 
@@ -165,5 +170,6 @@ No existe un `ProductService` monolítico — cada caso de uso es un command/que
 | [EShopy.Application/Products/Queries/](../../../EShopy.Application/Products/Queries/) | Get by id/slug, listados paginados |
 | [EShopy.Application/Products/ProductConcurrency.cs](../../../EShopy.Application/Products/ProductConcurrency.cs) | Encode/decode/match de RowVersion |
 | [EShopy.Infrastructure/Products/EfProductRepository.cs](../../../EShopy.Infrastructure/Products/EfProductRepository.cs) | Repositorio EF |
+| [EShopy.Infrastructure/Products/LocalDiskImageStorage.cs](../../../EShopy.Infrastructure/Products/LocalDiskImageStorage.cs) | Storage local, validación real, orientación y resize |
 | [EShopy.Api/Controllers/Admin/ProductsController.cs](../../../EShopy.Api/Controllers/Admin/ProductsController.cs) | Controller admin |
 | [EShopy.Api/Controllers/Public/ProductsController.cs](../../../EShopy.Api/Controllers/Public/ProductsController.cs) | Controller público |

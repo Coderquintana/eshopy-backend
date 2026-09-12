@@ -37,6 +37,7 @@ public sealed class Product : AppEntity
   public string? Sku { get; private set; }
   public string Name { get; private set; }
   public string? Description { get; private set; }
+  public string? ImageUrl { get; private set; }
   public decimal Price { get; private set; }
   public string CurrencyCode { get; private set; }
   public ProductStatus Status { get; private set; }
@@ -94,6 +95,15 @@ public sealed class Product : AppEntity
     Price = price;
     StockOnHand = stockOnHand;
     Sku = normalizedSku;
+    UpdatedAtUtc = updatedAtUtc;
+  }
+
+  public void SetImageUrl(string imageUrl, DateTime updatedAtUtc)
+  {
+    if (string.IsNullOrWhiteSpace(imageUrl) || imageUrl.Trim().Length > 2048)
+      throw new DomainException(ErrorCodes.ValidationError, "La URL de imagen del producto no es válida.");
+
+    ImageUrl = imageUrl.Trim();
     UpdatedAtUtc = updatedAtUtc;
   }
 
