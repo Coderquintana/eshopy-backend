@@ -146,9 +146,10 @@ public sealed class Store : AppEntity
       NormalizeAllowed(theme.FontFamily, StoreTheme.AllowedFontFamilies),
       NormalizeAllowed(theme.HeadingScale, StoreTheme.AllowedHeadingScales),
       NormalizeAllowed(theme.BorderRadius, StoreTheme.AllowedBorderRadii),
-      NormalizeAllowed(theme.SpacingDensity, StoreTheme.AllowedSpacingDensities));
+      NormalizeAllowed(theme.SpacingDensity, StoreTheme.AllowedSpacingDensities),
+      NormalizeOptional(theme.HeroImageUrl));
 
-    if (normalized is { FontFamily: null, HeadingScale: null, BorderRadius: null, SpacingDensity: null })
+    if (normalized is { FontFamily: null, HeadingScale: null, BorderRadius: null, SpacingDensity: null, HeroImageUrl: null })
       Data = null;
     else
       SetData(normalized);

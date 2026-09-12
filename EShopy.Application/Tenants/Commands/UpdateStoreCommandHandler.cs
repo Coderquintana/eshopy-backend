@@ -38,7 +38,7 @@ public sealed class UpdateStoreCommandHandler(
         command.InstagramUrl, command.FacebookUrl, command.Address, command.BusinessHours,
         updatedAtUtc);
       store.UpdateTheme(new StoreTheme(command.FontFamily, command.HeadingScale,
-        command.BorderRadius, command.SpacingDensity), updatedAtUtc);
+        command.BorderRadius, command.SpacingDensity, command.HeroImageUrl), updatedAtUtc);
 
       await repository.UpdateAsync(store, ct);
       return Result<StoreProfileDto>.Ok(TenantMappings.ToStoreProfileDto(store));

@@ -21,4 +21,5 @@ public sealed class StoreProfileDto
   public string? HeadingScale { get; init; }
   public string? BorderRadius { get; init; }
   public string? SpacingDensity { get; init; }
+  public string? HeroImageUrl { get; init; }
 }

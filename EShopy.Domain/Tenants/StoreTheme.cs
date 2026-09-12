@@ -5,7 +5,8 @@ public sealed record StoreTheme(
   string? FontFamily,
   string? HeadingScale,
   string? BorderRadius,
-  string? SpacingDensity)
+  string? SpacingDensity,
+  string? HeroImageUrl = null)
 {
   public static readonly IReadOnlySet<string> AllowedFontFamilies = new HashSet<string>(
     ["Inter", "Georgia", "Trebuchet MS"],

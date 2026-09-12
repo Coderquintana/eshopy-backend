@@ -16,4 +16,5 @@ public sealed record UpdateStoreCommand(
   string? FontFamily = null,
   string? HeadingScale = null,
   string? BorderRadius = null,
-  string? SpacingDensity = null);
+  string? SpacingDensity = null,
+  string? HeroImageUrl = null);

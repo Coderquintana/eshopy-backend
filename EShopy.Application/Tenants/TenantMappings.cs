@@ -53,6 +53,7 @@ internal static class TenantMappings
     FontFamily = store.Theme?.FontFamily,
     HeadingScale = store.Theme?.HeadingScale,
     BorderRadius = store.Theme?.BorderRadius,
-    SpacingDensity = store.Theme?.SpacingDensity
+    SpacingDensity = store.Theme?.SpacingDensity,
+    HeroImageUrl = store.Theme?.HeroImageUrl
   };
 }

@@ -58,6 +58,7 @@ public sealed class UpdateStoreCommandValidator : AbstractValidator<UpdateStoreC
 
     AddOptionalHttpUrlRule(x => x.InstagramUrl, "La URL de Instagram");
     AddOptionalHttpUrlRule(x => x.FacebookUrl, "La URL de Facebook");
+    AddOptionalHttpUrlRule(x => x.HeroImageUrl, "La imagen de portada");
 
     RuleFor(x => x.Address)
       .MaximumLength(500)
