@@ -157,6 +157,30 @@ public sealed class ProductsEndpointsTests : IClassFixture<SecurityWebApplicatio
     staleResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
   }
 
+  /// <summary>
+  /// Bug real (encontrado en vivo desde el Admin, 2026-09-12): los tests anteriores serializan
+  /// <see cref="ChangeProductStatusCommand"/> construyendo el record en C#, y
+  /// <c>System.Text.Json</c> sin converter serializa un enum como su valor numerico (ej. 1), no
+  /// como texto. El Admin real manda el nombre del estado ("Active"), como cualquier cliente HTTP
+  /// ajeno al tipo C# del backend — sin un <c>JsonStringEnumConverter</c> global, esa forma nunca
+  /// se probaba y el bind fallaba con el 400 generico de ASP.NET (sin el <c>ErrorResponse</c> propio),
+  /// publicar un producto rompia siempre. Este test manda el mismo shape que el navegador.
+  /// </summary>
+  [Fact]
+  public async Task ChangeStatus_WithStringEnumBody_ShouldSucceed()
+  {
+    var client = CreateAuthorizedClient();
+    var created = await CreateProductAsync(client);
+
+    var response = await client.PatchAsync(
+      $"/api/products/{created.Id}/status",
+      JsonContent.Create(new { status = "Active", rowVersion = created.RowVersion }));
+
+    response.StatusCode.Should().Be(HttpStatusCode.OK);
+    var updated = await response.Content.ReadFromJsonAsync<ProductAdminDto>();
+    updated!.Status.Should().Be("Active");
+  }
+
   [Fact]
   public async Task UpdateProduct_WithoutRowVersion_ShouldReturn400()
   {

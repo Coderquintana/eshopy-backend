@@ -33,11 +33,19 @@ try
 
   // Controllers + Swagger
   // D-05: convertidores globales de fecha, no tocar cada DTO uno por uno — ver UtcDateTimeConverter.
+  // Enums como string: sin este converter, System.Text.Json espera el valor numerico del enum al
+  // deserializar (ej. ChangeProductStatusCommand.Status), pero el frontend siempre manda el nombre
+  // ("Active") porque asi lo devuelve el propio backend en las respuestas (ProductAdminDto.Status
+  // ya es string por mapeo manual). Sin el converter, todo cambio de estado real desde el Admin
+  // fallaba con un 400 generico del framework (sin el ErrorResponse propio) — los tests no lo
+  // detectaban porque serializan el comando construyendo el record en C#, que serializa el enum
+  // como numero y por eso siempre deserializaba bien.
   builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
       options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());
       options.JsonSerializerOptions.Converters.Add(new UtcNullableDateTimeConverter());
+      options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
   builder.Services.AddEndpointsApiExplorer();
   builder.Services.AddSwaggerGen(options =>
