@@ -149,11 +149,11 @@ todavia (no hay caso de uso que lo pida aun) — solo escritura, verificada en v
 
 ## Deuda tecnica de arquitectura (ver detalle en BACKLOG.md)
 
-Revision de escalabilidad/sostenibilidad/consistencia (2026-07-26). D-02 y D-04 se implementaron el mismo dia; D-01 se probo y se revirtio a proposito; D-03 queda pendiente:
+Revision de escalabilidad/sostenibilidad/consistencia (2026-07-26). D-02, D-03 y D-04 están resueltos; D-01 se probó y se revirtió a propósito:
 
 - **D-01 Unit of Work — descartado a proposito, confirmado por Checkout**: se implemento `IUnitOfWork`/`EfUnitOfWork` y se revirtio en la misma sesion. `EShopyDbContext` ya ES un Unit of Work (trackea cambios, `SaveChangesAsync` los confirma atomicamente); agregar otra interfaz encima era abstraer una abstraccion sin un segundo repositorio que la necesite todavia. `EfProductRepository` vuelve a llamar `SaveChangesAsync` directamente. Checkout (el candidato mencionado en la nota original) confirmo la decision: `EfCheckoutWriter` es un writer angosto igual que los de Tenants, no un `IUnitOfWork` generico — sigue sin haber necesidad real de uno.
 - **D-02 Errores de concurrencia — resuelto**: `GlobalExceptionMiddleware` mapea `DbUpdateConcurrencyException` y `DbUpdateException` con `SqlException` 2601/2627 (violacion de indice unico) a 409 Conflict (`ErrorCodes.ConcurrencyConflict` / `ErrorCodes.Conflict`).
-- **D-03 RowVersion decorativo — pendiente**: configurado como concurrency token en EF, pero los comandos no reciben la version del cliente, asi que no previene lost updates en la practica.
+- **D-03 RowVersion end-to-end — resuelto (C-60)**: los comandos reciben la versión del cliente, los handlers rechazan tokens faltantes, inválidos u obsoletos y EF usa ese valor como `OriginalValue` para detectar carreras hasta `SaveChangesAsync`.
 - **D-04 Resolucion de tenant sin tests — resuelto**: logica extraida a `EShopy.Application/Common/Tenants/SubdomainResolver.cs` (puro, sin dependencia de ASP.NET), con 9 tests en `EShopy.Tests.Unit/Tenants/SubdomainResolverTests.cs`.
 
 Lo demas (capas, CQRS, Result<T>, validacion, indices/constraints en DB, multi-tenancy via Global Query Filter, RBAC) esta consistente y es una base solida para escalar.
