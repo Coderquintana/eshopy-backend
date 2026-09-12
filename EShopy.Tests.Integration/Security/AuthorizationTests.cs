@@ -49,14 +49,17 @@ public sealed class AuthorizationTests : IClassFixture<SecurityWebApplicationFac
       roles: ["TENANT_STAFF"]);
     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-    var response = await client.PostAsJsonAsync("/api/products", new
+    var response = await client.PostAsJsonAsync("/api/products", new[]
     {
-      slug = "from-auth-test",
-      sku = "AUTH-TEST-001",
-      name = "From Auth Test",
-      description = "Auth permissions test",
-      price = 12.50m,
-      stockOnHand = 7
+      new
+      {
+        slug = "from-auth-test",
+        sku = "AUTH-TEST-001",
+        name = "From Auth Test",
+        description = "Auth permissions test",
+        price = 12.50m,
+        stockOnHand = 7
+      }
     });
 
     response.StatusCode.Should().Be(HttpStatusCode.Forbidden);

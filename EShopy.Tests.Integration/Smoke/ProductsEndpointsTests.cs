@@ -32,12 +32,11 @@ public sealed class ProductsEndpointsTests : IClassFixture<SecurityWebApplicatio
       Price: 12.5m,
       StockOnHand: 5);
 
-    var createResponse = await client.PostAsJsonAsync("/api/products", createCommand);
+    var createResponse = await client.PostAsJsonAsync("/api/products", new[] { createCommand });
     createResponse.IsSuccessStatusCode.Should().BeTrue();
 
-    var created = await createResponse.Content.ReadFromJsonAsync<ProductAdminDto>();
-    created.Should().NotBeNull();
-    created!.RowVersion.Should().NotBeNullOrWhiteSpace();
+    var created = (await createResponse.Content.ReadFromJsonAsync<IReadOnlyList<ProductAdminDto>>())!.Single();
+    created.RowVersion.Should().NotBeNullOrWhiteSpace();
 
     var statusCommand = new ChangeProductStatusCommand(created.Id, ProductStatus.Active, created.RowVersion);
     var statusResponse = await client.PatchAsync($"/api/products/{created.Id}/status", JsonContent.Create(statusCommand));
@@ -52,6 +51,47 @@ public sealed class ProductsEndpointsTests : IClassFixture<SecurityWebApplicatio
   }
 
   [Fact]
+  public async Task CreateProducts_ShouldPersistTheWholeBatchAtomically()
+  {
+    var client = CreateAuthorizedClient();
+    var prefix = Guid.NewGuid().ToString("N")[..8];
+    var batch = new[]
+    {
+      new CreateProductCommand($"batch-{prefix}-a", null, "Batch A", null, 10m, 1),
+      new CreateProductCommand($"batch-{prefix}-b", null, "Batch B", null, 20m, 2),
+      new CreateProductCommand($"batch-{prefix}-c", null, "Batch C", null, 30m, 3)
+    };
+
+    var response = await client.PostAsJsonAsync("/api/products", batch);
+    response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+    var created = await response.Content.ReadFromJsonAsync<IReadOnlyList<ProductAdminDto>>();
+    created.Should().HaveCount(3);
+    created!.Select(p => p.Slug).Should().BeEquivalentTo(batch.Select(b => b.Slug));
+  }
+
+  [Fact]
+  public async Task CreateProducts_WithDuplicateSlugWithinTheBatch_ShouldRejectAllOfIt()
+  {
+    var client = CreateAuthorizedClient();
+    var slug = $"dup-{Guid.NewGuid():N}"[..20];
+    var batch = new[]
+    {
+      new CreateProductCommand(slug, null, "First", null, 10m, 1),
+      new CreateProductCommand(slug, null, "Second", null, 20m, 2)
+    };
+
+    var response = await client.PostAsJsonAsync("/api/products", batch);
+
+    response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+    // Confirmar que el lote rechazado no dejo nada creado a medias.
+    var found = await client.GetAsync("/api/products?page=1&pageSize=50");
+    var paged = await found.Content.ReadFromJsonAsync<PagedResult<ProductAdminDto>>();
+    paged!.Items.Should().NotContain(p => p.Slug == slug);
+  }
+
+  [Fact]
   public async Task UpdateProduct_WithStaleRowVersion_ShouldReturn409()
   {
     var client = CreateAuthorizedClient();
@@ -59,17 +99,42 @@ public sealed class ProductsEndpointsTests : IClassFixture<SecurityWebApplicatio
 
     var firstUpdate = new UpdateProductCommand(
       created.Id, "First update", null, 15m, 5, null, created.RowVersion);
-    var firstResponse = await client.PutAsJsonAsync($"/api/products/{created.Id}", firstUpdate);
+    var firstResponse = await client.PutAsJsonAsync("/api/products", new[] { firstUpdate });
     firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-    var updated = (await firstResponse.Content.ReadFromJsonAsync<ProductAdminDto>())!;
+    var updated = (await firstResponse.Content.ReadFromJsonAsync<IReadOnlyList<ProductAdminDto>>())!.Single();
     updated.RowVersion.Should().NotBe(created.RowVersion);
 
     var staleUpdate = new UpdateProductCommand(
       created.Id, "Stale update", null, 20m, 5, null, created.RowVersion);
-    var staleResponse = await client.PutAsJsonAsync($"/api/products/{created.Id}", staleUpdate);
+    var staleResponse = await client.PutAsJsonAsync("/api/products", new[] { staleUpdate });
 
     staleResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
+  }
+
+  [Fact]
+  public async Task UpdateProducts_WhenOneItemInTheBatchIsStale_ShouldNotApplyAnyOfThem()
+  {
+    var client = CreateAuthorizedClient();
+    var freshOne = await CreateProductAsync(client);
+    var staleOne = await CreateProductAsync(client);
+
+    // Dejar a `staleOne` desactualizado con un update previo exitoso
+    var priorUpdate = new UpdateProductCommand(staleOne.Id, "Renamed once", null, staleOne.Price, staleOne.StockOnHand, null, staleOne.RowVersion);
+    await client.PutAsJsonAsync("/api/products", new[] { priorUpdate });
+
+    var batch = new[]
+    {
+      new UpdateProductCommand(freshOne.Id, "Fresh renamed", null, 99m, 9, null, freshOne.RowVersion),
+      new UpdateProductCommand(staleOne.Id, "Stale renamed", null, 88m, 8, null, staleOne.RowVersion) // RowVersion vieja a proposito
+    };
+
+    var response = await client.PutAsJsonAsync("/api/products", batch);
+    response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+    var reread = await client.GetAsync($"/api/products/{freshOne.Id}");
+    var stillFresh = await reread.Content.ReadFromJsonAsync<ProductAdminDto>();
+    stillFresh!.Name.Should().Be(freshOne.Name); // el item "bueno" del lote NO se aplico
   }
 
   [Fact]
@@ -99,14 +164,18 @@ public sealed class ProductsEndpointsTests : IClassFixture<SecurityWebApplicatio
     var created = await CreateProductAsync(client);
 
     var response = await client.PutAsJsonAsync(
-      $"/api/products/{created.Id}",
-      new
+      "/api/products",
+      new[]
       {
-        name = "Missing version",
-        description = (string?)null,
-        price = 10m,
-        stockOnHand = 5,
-        sku = (string?)null
+        new
+        {
+          id = created.Id,
+          name = "Missing version",
+          description = (string?)null,
+          price = 10m,
+          stockOnHand = 5,
+          sku = (string?)null
+        }
       });
 
     response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -132,8 +201,8 @@ public sealed class ProductsEndpointsTests : IClassFixture<SecurityWebApplicatio
       10m,
       5);
 
-    var response = await client.PostAsJsonAsync("/api/products", command);
+    var response = await client.PostAsJsonAsync("/api/products", new[] { command });
     response.EnsureSuccessStatusCode();
-    return (await response.Content.ReadFromJsonAsync<ProductAdminDto>())!;
+    return (await response.Content.ReadFromJsonAsync<IReadOnlyList<ProductAdminDto>>())!.Single();
   }
 }

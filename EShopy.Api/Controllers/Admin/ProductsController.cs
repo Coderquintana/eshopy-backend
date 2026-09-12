@@ -10,26 +10,31 @@ namespace EShopy.Api.Controllers.Admin;
 /// <summary>Endpoints administrativos para el catálogo de productos.</summary>
 [Route("api/products")]
 public sealed class ProductsController(
-  CreateProductCommandHandler createHandler,
-  UpdateProductCommandHandler updateHandler,
+  CreateProductsCommandHandler createHandler,
+  UpdateProductsCommandHandler updateHandler,
   ChangeProductStatusCommandHandler changeStatusHandler,
   UploadProductImageCommandHandler uploadImageHandler,
   GetProductsQueryHandler getProductsHandler,
   GetProductByIdQueryHandler getByIdHandler) : BaseApiController
 {
-  /// <summary>Crea un producto en estado Draft.</summary>
+  /// <summary>
+  /// Crea uno o mas productos en estado Draft. Un alta individual es, simplemente, un lote de 1
+  /// (GOVERNANCE.md, "Mutaciones en lote por defecto", D-07) — no existe una forma singular.
+  /// Todo el lote se persiste en una sola transaccion: si un item falla, no se crea ninguno.
+  /// </summary>
   [HttpPost]
   [Authorize(Policy = "CatalogWrite")]
-  [ProducesResponseType(typeof(ProductAdminDto), StatusCodes.Status201Created)]
+  [ProducesResponseType(typeof(IReadOnlyList<ProductAdminDto>), StatusCodes.Status201Created)]
   [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
   [ProducesResponseType(typeof(object), StatusCodes.Status409Conflict)]
-  public async Task<ActionResult<ProductAdminDto>> Create([FromBody] CreateProductCommand command, CancellationToken ct)
+  public async Task<ActionResult<IReadOnlyList<ProductAdminDto>>> Create(
+    [FromBody] IReadOnlyList<CreateProductCommand> items, CancellationToken ct)
   {
-    var result = await createHandler.Handle(command, ct);
+    var result = await createHandler.Handle(new CreateProductsCommand(items), ct);
     if (!result.IsSuccess)
       return FromResult(result);
 
-    return CreatedAtAction(nameof(GetById), new { id = result.Value!.Id }, result.Value);
+    return StatusCode(StatusCodes.Status201Created, result.Value);
   }
 
   /// <summary>Lista productos (admin) con paginación SQL.</summary>
@@ -56,17 +61,22 @@ public sealed class ProductsController(
     return FromResult(result);
   }
 
-  /// <summary>Actualiza campos editables de un producto.</summary>
-  [HttpPut("{id:guid}")]
+  /// <summary>
+  /// Actualiza campos editables de uno o mas productos. Cada item lleva su propio Id y
+  /// RowVersion — sin Id en la ruta, misma logica que Create (D-07). Todo el lote se persiste
+  /// en una sola transaccion: si el RowVersion de un solo item esta desactualizado, no se
+  /// aplica ningun cambio.
+  /// </summary>
+  [HttpPut]
   [Authorize(Policy = "CatalogWrite")]
-  [ProducesResponseType(typeof(ProductAdminDto), StatusCodes.Status200OK)]
+  [ProducesResponseType(typeof(IReadOnlyList<ProductAdminDto>), StatusCodes.Status200OK)]
   [ProducesResponseType(typeof(object), StatusCodes.Status400BadRequest)]
   [ProducesResponseType(typeof(object), StatusCodes.Status404NotFound)]
   [ProducesResponseType(typeof(object), StatusCodes.Status409Conflict)]
-  public async Task<ActionResult<ProductAdminDto>> Update(Guid id, [FromBody] UpdateProductCommand command, CancellationToken ct)
+  public async Task<ActionResult<IReadOnlyList<ProductAdminDto>>> Update(
+    [FromBody] IReadOnlyList<UpdateProductCommand> items, CancellationToken ct)
   {
-    // El ID del producto viene en la ruta; se inyecta en el command recibido del body
-    var result = await updateHandler.Handle(command with { Id = id }, ct);
+    var result = await updateHandler.Handle(new UpdateProductsCommand(items), ct);
     return FromResult(result);
   }
 

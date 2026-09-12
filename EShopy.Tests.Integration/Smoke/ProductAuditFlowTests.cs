@@ -35,9 +35,9 @@ public sealed class ProductAuditFlowTests : IClassFixture<SecurityWebApplication
       null,
       created.RowVersion);
 
-    var updateResponse = await client.PutAsJsonAsync($"/api/products/{created.Id}", updateCommand);
+    var updateResponse = await client.PutAsJsonAsync("/api/products", new[] { updateCommand });
     updateResponse.IsSuccessStatusCode.Should().BeTrue();
-    var updated = (await updateResponse.Content.ReadFromJsonAsync<ProductAdminDto>())!;
+    var updated = (await updateResponse.Content.ReadFromJsonAsync<IReadOnlyList<ProductAdminDto>>())!.Single();
 
     var statusCommand = new ChangeProductStatusCommand(updated.Id, ProductStatus.Active, updated.RowVersion);
     var statusResponse = await client.PatchAsync(
@@ -74,7 +74,7 @@ public sealed class ProductAuditFlowTests : IClassFixture<SecurityWebApplication
       "SKU-AUDIT",
       created.RowVersion);
 
-    var response = await client.PutAsJsonAsync($"/api/products/{created.Id}", updateCommand);
+    var response = await client.PutAsJsonAsync("/api/products", new[] { updateCommand });
     response.IsSuccessStatusCode.Should().BeTrue();
 
     var auditLogger = (InMemoryAuditLogger)_factory.Services.GetRequiredService<IAuditLogger>();
@@ -102,11 +102,11 @@ public sealed class ProductAuditFlowTests : IClassFixture<SecurityWebApplication
       Price: price,
       StockOnHand: 10);
 
-    var response = await client.PostAsJsonAsync("/api/products", command);
+    var response = await client.PostAsJsonAsync("/api/products", new[] { command });
     response.IsSuccessStatusCode.Should().BeTrue();
 
-    var created = await response.Content.ReadFromJsonAsync<ProductAdminDto>();
+    var created = await response.Content.ReadFromJsonAsync<IReadOnlyList<ProductAdminDto>>();
     created.Should().NotBeNull();
-    return created!;
+    return created!.Single();
   }
 }

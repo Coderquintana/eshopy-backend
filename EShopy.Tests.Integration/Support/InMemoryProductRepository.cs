@@ -37,16 +37,56 @@ internal sealed class InMemoryProductRepository : IProductRepository
   {
     lock (_sync)
     {
-      if (product.RowVersion is not { Length: 8 } currentRowVersion ||
-          !currentRowVersion.AsSpan().SequenceEqual(expectedRowVersion))
-      {
-        throw new DbUpdateConcurrencyException("El RowVersion esperado no coincide con el actual.");
-      }
-
+      CheckRowVersion(product, expectedRowVersion);
       AdvanceRowVersion(product);
     }
 
     return Task.CompletedTask;
+  }
+
+  public Task AddRangeAsync(IReadOnlyList<Product> products, CancellationToken ct)
+  {
+    lock (_sync)
+    {
+      foreach (var product in products)
+      {
+        if (!_productsByTenant.TryGetValue(product.TenantId, out var list))
+        {
+          list = [];
+          _productsByTenant[product.TenantId] = list;
+        }
+
+        AdvanceRowVersion(product);
+        list.Add(product);
+      }
+    }
+
+    return Task.CompletedTask;
+  }
+
+  public Task UpdateRangeAsync(IReadOnlyList<(Product Product, byte[] ExpectedRowVersion)> items, CancellationToken ct)
+  {
+    lock (_sync)
+    {
+      // Verificar TODOS los RowVersion antes de tocar ninguno: simula que un SaveChangesAsync
+      // real falla como una unidad, no fila por fila (mismo criterio que EfProductRepository).
+      foreach (var (product, expectedRowVersion) in items)
+        CheckRowVersion(product, expectedRowVersion);
+
+      foreach (var (product, _) in items)
+        AdvanceRowVersion(product);
+    }
+
+    return Task.CompletedTask;
+  }
+
+  private static void CheckRowVersion(Product product, byte[] expectedRowVersion)
+  {
+    if (product.RowVersion is not { Length: 8 } currentRowVersion ||
+        !currentRowVersion.AsSpan().SequenceEqual(expectedRowVersion))
+    {
+      throw new DbUpdateConcurrencyException("El RowVersion esperado no coincide con el actual.");
+    }
   }
 
   public Task<Product?> GetByIdAsync(Guid tenantId, Guid id, CancellationToken ct)

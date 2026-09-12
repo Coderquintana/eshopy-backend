@@ -67,14 +67,27 @@ _(vacio — B-02 resuelto, ver COMPLETADAS C-50)_
 
 Esta tabla es la fase de estabilización: no bloquea el trabajo de hoy, pero
 se paga caro si se ignora antes de invertir en CI/CD para este repo (ver
-sección "ENTORNOS" más abajo) — automatizar tests/deploy contra
-un contrato que ya sabemos que va a cambiar (D-07) es repetir el trabajo
-dos veces. No bloquea el tooling del frontend (L-05/L-07 en su `BACKLOG.md`),
-que es independiente de esto.
+sección "ENTORNOS" más abajo). No bloquea el tooling del frontend
+(L-05/L-07 en su `BACKLOG.md`), que es independiente de esto.
 
-| # | Tarea | Modulo | Detalle |
-|---|---|---|---|
-| D-07 | Endpoints de Products nacieron singulares, no en lote | Catalog | Viola la regla nueva de `GOVERNANCE.md` ("Mutaciones en lote por defecto", 2026-09-08): `POST /api/products` crea uno, `PUT /api/products/{id}` actualiza uno, no existe `DELETE`. Se escribieron antes de que la regla existiera. Migrar a `POST /api/products/batch` (o equivalente) que reciba una lista — un alta individual sigue siendo un lote de 1, sin caso especial. Motivo concreto, no estético: el negocio va a necesitar cargar catálogos grandes (una tienda no carga 300 productos de a uno), y ese día el contrato tiene que estar listo sin romper a los clientes que ya llaman la forma singular — por eso conviene resolverlo ahora, con poco código en juego, y no después con Products en producción. El frontend no tiene que cambiar nada todavía: sigue llamando con lote de 1 hasta que exista una función real de carga masiva (ver `eshopy-frontend/agents/BACKLOG.md`, "Más adelante"). **Pendiente, no implementado** — bloquea empezar cualquier carga masiva del lado del frontend |
+_(tabla vacía por ahora — D-06 y D-07, los dos últimos items, se resolvieron el 2026-09-12)_
+
+**D-07 (Products a lote) — ✅ resuelto 2026-09-12.** Ver la fila de "Mutaciones en lote por
+defecto" en `GOVERNANCE.md` (precisada el mismo día) para la decisión completa. Resumen: `POST
+/api/products` y `PUT /api/products/{id}` migraron a `POST /api/products` y `PUT /api/products`
+(sin id en la ruta) — ambos reciben SIEMPRE un array (un alta o edición individual es un lote de
+1, sin forma singular en paralelo), y persisten el lote completo en una sola transacción
+(`IProductRepository.AddRangeAsync`/`UpdateRangeAsync`, un solo `SaveChangesAsync`): si un item
+falla — validación, slug/SKU duplicado (contra la base o dentro del propio lote), RowVersion
+desactualizado — no se persiste ninguno. `PATCH /api/products/{id}/status` seguió singular a
+propósito (no nombrado por D-07); `DELETE` sigue sin existir, ninguna forma (no se inventó ahora).
+`CreateProductCommandHandler`/`UpdateProductCommandHandler` (singulares) se eliminaron, reemplazados
+por `CreateProductsCommandHandler`/`UpdateProductsCommandHandler`; los validadores por item
+(`CreateProductCommandValidator`/`UpdateProductCommandValidator`) se reutilizaron sin cambios.
+Verificado en vivo contra SQL Server real: batch de 2 altas, slug duplicado dentro del mismo lote
+rechazado sin crear nada, batch de 2 ediciones con un solo RowVersion desactualizado rechazado sin
+aplicar ninguna (ni siquiera la que tenía su RowVersion al día). 145 tests unitarios, 49 de
+integración (3 nuevos), todos verdes.
 
 **D-06 (primer acceso de un tenant nuevo) — ✅ resuelto 2026-09-12.** Fix rápido tal cual se
 propuso: `IKeycloakUserProvisioner.CreateUserAsync` ahora devuelve `KeycloakUserProvisioningResult`
@@ -251,3 +264,4 @@ _(vacio)_
 | C-63 | F4-09 personalización ampliada de Store: seis columnas reales de contacto (`ContactWhatsapp`, `ContactEmail`, `InstagramUrl`, `FacebookUrl`, `Address`, `BusinessHours`) y cuatro knobs cosméticos tipados en `StoreTheme` sobre `Data` (`FontFamily`, `HeadingScale`, `BorderRadius`, `SpacingDensity`). GET/PUT `/api/store`, validadores, dominio, mapping, migración y Postman actualizados. 145 tests unitarios y 46 de integración verdes; el flujo de integración comprueba que una actualización autenticada aparece después en la lectura pública | Tenants/Store | 2026-09-11 |
 | C-64 | F5-04 imagen de producto: `Product.ImageUrl`, endpoint multipart protegido por `CatalogWrite` y `rowVersion`, validación real de JPEG/PNG/WebP hasta 5 MB, orientación automática, límite de 1200 px y normalización WebP. Storage local con URLs públicas inmutables y limpieza segura de archivos reemplazados o fallidos. Contratos públicos/admin, migración, documentación y Postman actualizados | Catalog | 2026-09-12 |
 | C-65 | D-06 primer acceso de un tenant nuevo: `IKeycloakUserProvisioner.CreateUserAsync` devuelve `KeycloakUserProvisioningResult` (UserId + TemporaryPassword, antes solo el id); `POST /api/onboarding/tenants` expone `OwnerTemporaryPassword` una sola vez en `TenantOnboardingResultDto`, mismo criterio que `Order.AccessToken`. Verificado en vivo contra Keycloak real (password-grant con la password devuelta responde "Account is not fully set up", no "Invalid user credentials") | Tenants/Identity | 2026-09-12 |
+| C-66 | D-07 Products a lote: `POST/PUT /api/products` migraron a lote (sin forma singular en paralelo), persistencia todo-o-nada vía `IProductRepository.AddRangeAsync`/`UpdateRangeAsync` (un solo `SaveChangesAsync`). Duplicados de slug/SKU detectados tanto contra la base como dentro del propio lote. `PATCH .../status` y DELETE quedaron fuera a propósito. Verificado en vivo contra SQL Server real: batch de altas, slug duplicado intra-lote rechazado sin crear nada, un RowVersion desactualizado en un batch de 2 ediciones rechaza ambas | Catalog | 2026-09-12 |

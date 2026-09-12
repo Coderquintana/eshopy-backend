@@ -21,6 +21,26 @@ public sealed class EfProductRepository(EShopyDbContext db) : IProductRepository
     await db.SaveChangesAsync(ct);
   }
 
+  public async Task AddRangeAsync(IReadOnlyList<Product> products, CancellationToken ct)
+  {
+    db.Products.AddRange(products);
+    await db.SaveChangesAsync(ct);
+  }
+
+  public async Task UpdateRangeAsync(IReadOnlyList<(Product Product, byte[] ExpectedRowVersion)> items, CancellationToken ct)
+  {
+    foreach (var (product, expectedRowVersion) in items)
+    {
+      db.Products.Update(product);
+      db.Entry(product).Property(p => p.RowVersion).OriginalValue = expectedRowVersion;
+    }
+
+    // Un solo SaveChangesAsync para todo el lote: EF lo envuelve en una unica transaccion
+    // implicita, asi que si el RowVersion de un item no coincide (DbUpdateConcurrencyException),
+    // no se persiste ninguno — mismo patron atomico que EfTenantOnboardingWriter.
+    await db.SaveChangesAsync(ct);
+  }
+
   public Task<Product?> GetByIdAsync(Guid tenantId, Guid id, CancellationToken ct)
     => db.Products.AsNoTracking()
       .FirstOrDefaultAsync(p => p.TenantId == tenantId && p.Id == id, ct);

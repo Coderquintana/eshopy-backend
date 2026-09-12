@@ -87,8 +87,8 @@ public static class DependencyInjection
     services.AddScoped<GetTenantUsersQueryHandler>();
 
     // Handlers de productos — Commands
-    services.AddScoped<CreateProductCommandHandler>();
-    services.AddScoped<UpdateProductCommandHandler>();
+    services.AddScoped<CreateProductsCommandHandler>();
+    services.AddScoped<UpdateProductsCommandHandler>();
     services.AddScoped<ChangeProductStatusCommandHandler>();
     services.AddScoped<UploadProductImageCommandHandler>();
 

@@ -1,8 +1,9 @@
 # CURRENT_STATE - Estado actual del codigo
 
-> Actualizado 2026-09-12: D-06 resuelto — `POST /api/onboarding/tenants` devuelve la password
-> temporal del Owner una sola vez. Antes, mismo dia: F5-04 incorpora subida y procesamiento de
-> imágenes de producto.
+> Actualizado 2026-09-12: D-07 resuelto — `POST/PUT /api/products` migraron a lote (sin id en la
+> ruta de PUT), persistencia todo-o-nada. Antes, mismo dia: D-06 resuelto — `POST
+> /api/onboarding/tenants` devuelve la password temporal del Owner una sola vez. Antes de eso,
+> mismo dia: F5-04 incorpora subida y procesamiento de imágenes de producto.
 > Antes: membresia de tenant exigida para todo usuario autenticado no SUPERADMIN.
 > Antes de eso: F8-07 (consulta publica del pedido) implementado y verificado en vivo el 2026-09-06,
 > y reauditado 2026-07-26 contra HEAD. Sesion larga: revision de arquitectura + modulo Tenants/Store completo + infra Docker Compose + Carrito + Pedidos + webhook de Pagos (solo faltan los adapters reales Bancard/PagoPar) + bootstrap de DB (B-02) + limpieza de carritos (F6-04) + Serilog/AuditLog (F9-01/F9-03).
@@ -31,7 +32,7 @@
 |---|---|---|
 | **Core / Infraestructura base** | ? Implementado | Middleware, BaseApiController, ErrorResponse, Result<T>, Global Query Filter, mapeo de `DbUpdateConcurrencyException`/violacion de indice unico a 409. Sin capa de Unit of Work generica a proposito (ver nota D-01 en BACKLOG.md); writers angostos (`ITenantOnboardingWriter`/`ITenantActivationWriter`/`ICheckoutWriter`/`IPaymentWebhookWriter`) para los flujos que escriben varios agregados en una transaccion. Bootstrap de DB en Development (B-02): chequea migraciones pendientes al arrancar. Logging via Serilog (F9-01, ver seccion propia abajo). Auditoria de operaciones sensibles via `AuditLog`/`IAuditLogger` (F9-03, ver seccion propia abajo) |
 | **Auth (Keycloak/JWT)** | ? Completo (Fase 2) | OIDC + RBAC por claim `permissions` + pertenencia activa en `TenantUsers` para el tenant resuelto por Host (`TenantMembershipMiddleware`) + CORS por ambiente + headers de seguridad + UserContextAccessor |
-| **Products (Catalog)** | ✅ Completo (F5-04) | CQRS + Result<T> + SQL pagination + StoreId + transiciones validadas y RowVersion end-to-end. F5-04 agrega una imagen por producto, subida multipart protegida y storage local procesado |
+| **Products (Catalog)** | ✅ Completo (F5-04, D-07) | CQRS + Result<T> + SQL pagination + StoreId + transiciones validadas y RowVersion end-to-end. F5-04 agrega una imagen por producto, subida multipart protegida y storage local procesado. D-07: `POST/PUT /api/products` son en lote (sin forma singular en paralelo), todo-o-nada; `PATCH .../status` sigue singular a propósito, DELETE sigue sin existir |
 | **Store** | ? Implementado | `GET/PUT /api/store` expone los datos públicos de marca y contacto. Los knobs cosméticos tipados (`FontFamily`, `HeadingScale`, `BorderRadius`, `SpacingDensity`) se guardan en `Data` mediante `StoreTheme`; seis datos de contacto tienen columnas propias. `CurrencyCode` sigue inmutable tras creación |
 | **Tenants** | ? Implementado (Fase 4) | `Tenant`/`TenantUser` reales, maquina de estados completa. `EfTenantResolver` reemplaza el diccionario en memoria (cache ~60s por subdominio). Onboarding (`POST /api/onboarding/tenants`) crea Tenant+Store+Owner(Keycloak)+Subscription atomicamente y devuelve la password temporal del Owner una sola vez (D-06, `OwnerTemporaryPassword`). Activacion manual SUPERADMIN implementada; webhook de pago sigue en Fase 8. Invitar Admin/Staff (`GET/POST /api/admin/users`) implementado y verificado en vivo (F4-05) — ese camino todavia no entrega su password (mismo gap que D-06, fuera de alcance) |
 | **Subscriptions** | ?? Minimo (Fase 4) | Entidad y maquina de estados completas, se crea en el onboarding. Sin integracion de pago real: `PriceAmount` siempre 0 (precios TBD), sin renovacion automatica ni webhook — todo eso es Fase 8 |

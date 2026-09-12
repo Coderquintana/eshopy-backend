@@ -176,8 +176,8 @@ public sealed class TenantMembershipTests : IClassFixture<SecurityWebApplication
     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
   }
 
-  private static CreateProductCommand CreateProductCommand(string slug)
-    => new(slug, null, "Membership Test Product", null, 1000m, 10);
+  private static CreateProductCommand[] CreateProductCommand(string slug)
+    => [new(slug, null, "Membership Test Product", null, 1000m, 10)];
 
   private static async Task<ProductAdminDto> CreateActiveProductAsync(HttpClient client)
   {
@@ -185,7 +185,7 @@ public sealed class TenantMembershipTests : IClassFixture<SecurityWebApplication
       "/api/products",
       CreateProductCommand("anonymous-checkout-membership-product"));
     createResponse.EnsureSuccessStatusCode();
-    var product = (await createResponse.Content.ReadFromJsonAsync<ProductAdminDto>())!;
+    var product = (await createResponse.Content.ReadFromJsonAsync<IReadOnlyList<ProductAdminDto>>())!.Single();
 
     var statusResponse = await client.PatchAsync(
       $"/api/products/{product.Id}/status",

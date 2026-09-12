@@ -376,13 +376,17 @@
       "name": "Catalog (Admin)",
       "item": [
         {
-          "name": "Create Product",
+          "name": "Create Products (batch, un alta individual es un array de 1)",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Authorization",
                 "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
             "url": {
@@ -396,7 +400,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"slug\": \"product-slug\",\n  \"sku\": \"SKU-001\",\n  \"name\": \"Producto\",\n  \"description\": \"Descripcion\",\n  \"price\": 1000.0,\n  \"stockOnHand\": 10\n}"
+              "raw": "[\n  {\n    \"slug\": \"product-slug\",\n    \"sku\": \"SKU-001\",\n    \"name\": \"Producto\",\n    \"description\": \"Descripcion\",\n    \"price\": 1000.0,\n    \"stockOnHand\": 10\n  }\n]"
             }
           }
         },
@@ -454,28 +458,31 @@
           }
         },
         {
-          "name": "Update Product",
+          "name": "Update Products (batch, sin id en la ruta)",
           "request": {
             "method": "PUT",
             "header": [
               {
                 "key": "Authorization",
                 "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/products/{{id}}",
+              "raw": "{{baseUrl}}/products",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "products",
-                "{{id}}"
+                "products"
               ]
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Producto\",\n  \"description\": \"Descripcion\",\n  \"price\": 1500.0,\n  \"stockOnHand\": 5,\n  \"sku\": \"SKU-001\"\n}"
+              "raw": "[\n  {\n    \"id\": \"{{id}}\",\n    \"name\": \"Producto\",\n    \"description\": \"Descripcion\",\n    \"price\": 1500.0,\n    \"stockOnHand\": 5,\n    \"sku\": \"SKU-001\",\n    \"rowVersion\": \"paste-current-product-row-version\"\n  }\n]"
             }
           }
         },

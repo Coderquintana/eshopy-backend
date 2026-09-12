@@ -48,40 +48,52 @@
 ## Catalog — Admin endpoints
 
 ### POST /api/products
-Crear producto en estado Draft.
+Crear uno o más productos en estado Draft. **En lote siempre** (D-07, GOVERNANCE.md "Mutaciones
+en lote por defecto"): no existe una forma singular — un alta individual es un array de 1. Todo
+el lote se persiste en una sola transacción: si un item falla (validación, slug/SKU duplicado
+contra la base o dentro del propio lote), no se crea ninguno.
 
 **Auth**: `CatalogWrite`
 
-**Request body:**
+**Request body** (array, uno o más items):
 ```json
-{
-  "slug": "remera-blanca",
-  "sku": "REM-001",
-  "name": "Remera Blanca",
-  "description": "Algodón 100%.",
-  "price": 85000,
-  "stockOnHand": 50
-}
+[
+  {
+    "slug": "remera-blanca",
+    "sku": "REM-001",
+    "name": "Remera Blanca",
+    "description": "Algodón 100%.",
+    "price": 85000,
+    "stockOnHand": 50
+  }
+]
 ```
 
-> `CurrencyCode` NO se envía — el backend lo toma del Store.
+> `CurrencyCode` NO se envía — el backend lo toma del Store, compartido por todo el lote.
 
-**Response 201:**
+**Response 201** (array, mismo orden que el request):
 ```json
-{
-  "id": "aaaaaaaa-...",
-  "slug": "remera-blanca",
-  "sku": "REM-001",
-  "name": "Remera Blanca",
-  "description": "Algodón 100%.",
-  "price": 85000,
-  "currencyCode": "PYG",
-  "status": "Draft",
-  "stockOnHand": 50,
-  "createdAtUtc": "2026-02-19T13:00:00Z",
-  "updatedAtUtc": "2026-02-19T13:00:00Z"
-}
+[
+  {
+    "id": "aaaaaaaa-...",
+    "slug": "remera-blanca",
+    "sku": "REM-001",
+    "name": "Remera Blanca",
+    "description": "Algodón 100%.",
+    "imageUrl": null,
+    "price": 85000,
+    "currencyCode": "PYG",
+    "status": "Draft",
+    "stockOnHand": 50,
+    "rowVersion": "AAAAAAAAB9E=",
+    "createdAtUtc": "2026-02-19T13:00:00Z",
+    "updatedAtUtc": "2026-02-19T13:00:00Z"
+  }
+]
 ```
+
+**Errores**: `VALIDATION_ERROR` (400, incluye lote vacío o slug/SKU repetido dentro del propio
+lote), `CONFLICT` (409, slug o SKU ya existe contra la base).
 
 ---
 
@@ -112,23 +124,37 @@ Detalle de producto por ID.
 
 ---
 
-### PUT /api/products/{id:guid}
-Actualizar producto.
+### PUT /api/products
+Actualizar uno o más productos. **En lote siempre** (D-07): sin `{id}` en la ruta — cada item
+lleva su propio `id` y `rowVersion` en el body, una edición individual es un array de 1. Todo el
+lote se persiste en una sola transacción: si el `rowVersion` de UN SOLO item no coincide (o
+cualquier otro item falla su validación/unicidad de SKU), no se aplica ningún cambio — ni
+siquiera a los items del lote cuyo `rowVersion` sí estaba al día.
 
 **Auth**: `CatalogWrite`
 
-**Request body:**
+**Request body** (array, uno o más items):
 ```json
-{
-  "name": "Remera Blanca XL",
-  "description": "Talle extra grande.",
-  "price": 90000,
-  "stockOnHand": 30,
-  "sku": "REM-001-XL"
-}
+[
+  {
+    "id": "aaaaaaaa-...",
+    "name": "Remera Blanca XL",
+    "description": "Talle extra grande.",
+    "price": 90000,
+    "stockOnHand": 30,
+    "sku": "REM-001-XL",
+    "rowVersion": "AAAAAAAAB9E="
+  }
+]
 ```
 
-**Response 200**: `ProductAdminDto` actualizado
+**Response 200** (array, mismo orden que el request): lista de `ProductAdminDto` actualizados,
+cada uno con su `rowVersion` nuevo.
+
+**Errores**: `VALIDATION_ERROR` (400, incluye lote vacío, un id repetido dentro del propio lote o
+`rowVersion` faltante/inválido), `NOT_FOUND` (404, algún id no existe), `CONCURRENCY_CONFLICT`
+(409, el `rowVersion` de algún item quedó desactualizado), `CONFLICT` (409, SKU ya existe contra
+la base o repetido dentro del propio lote).
 
 ---
 

@@ -133,9 +133,9 @@ public sealed class CheckoutFlowTests : IClassFixture<SecurityWebApplicationFact
     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
     var createCommand = new CreateProductCommand(slug, null, "Checkout Flow Product", null, price, 100);
-    var createResponse = await client.PostAsJsonAsync("/api/products", createCommand);
+    var createResponse = await client.PostAsJsonAsync("/api/products", new[] { createCommand });
     createResponse.EnsureSuccessStatusCode();
-    var product = (await createResponse.Content.ReadFromJsonAsync<ProductAdminDto>())!;
+    var product = (await createResponse.Content.ReadFromJsonAsync<IReadOnlyList<ProductAdminDto>>())!.Single();
 
     var statusCommand = new ChangeProductStatusCommand(product.Id, ProductStatus.Active, product.RowVersion);
     var statusResponse = await client.PatchAsync($"/api/products/{product.Id}/status", JsonContent.Create(statusCommand));
