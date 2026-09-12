@@ -1,4 +1,5 @@
 using EShopy.Application.Common.Context;
+using EShopy.Application.Tenants;
 using EShopy.Application.Tenants.Contracts;
 using EShopy.Domain.Common.Errors;
 using EShopy.Domain.Common.Exceptions;
@@ -9,6 +10,7 @@ namespace EShopy.Application.Tenants.Commands;
 
 public sealed class UpdateStoreCommandHandler(
   IStoreRepository repository,
+  IStoreImageStorage imageStorage,
   TenantContext tenantContext)
 {
   private readonly UpdateStoreCommandValidator _validator = new();
@@ -31,6 +33,8 @@ public sealed class UpdateStoreCommandHandler(
 
     try
     {
+      var previousLogoUrl = store.LogoUrl;
+      var previousHeroImageUrl = store.Theme?.HeroImageUrl;
       var updatedAtUtc = DateTime.UtcNow;
       store.UpdateProfile(command.Name, command.Timezone, command.PrimaryColor, command.LogoUrl,
         command.BackgroundColor, command.Description, updatedAtUtc);
@@ -41,6 +45,12 @@ public sealed class UpdateStoreCommandHandler(
         command.BorderRadius, command.SpacingDensity, command.HeroImageUrl), updatedAtUtc);
 
       await repository.UpdateAsync(store, ct);
+
+      if (previousLogoUrl is not null && previousLogoUrl != store.LogoUrl)
+        await imageStorage.DeleteAsync(store.Id, previousLogoUrl, CancellationToken.None);
+      if (previousHeroImageUrl is not null && previousHeroImageUrl != store.Theme?.HeroImageUrl)
+        await imageStorage.DeleteAsync(store.Id, previousHeroImageUrl, CancellationToken.None);
+
       return Result<StoreProfileDto>.Ok(TenantMappings.ToStoreProfileDto(store));
     }
     catch (DomainException ex)

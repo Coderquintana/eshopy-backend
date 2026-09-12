@@ -6,6 +6,7 @@ using EShopy.Infrastructure;
 using EShopy.Infrastructure.Identity;
 using EShopy.Infrastructure.Persistence;
 using EShopy.Infrastructure.Products;
+using EShopy.Infrastructure.Tenants;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -232,6 +233,16 @@ try
   {
     FileProvider = new PhysicalFileProvider(productImagesRoot),
     RequestPath = ProductImageStoragePaths.RequestPath,
+    OnPrepareResponse = context =>
+      context.Context.Response.Headers.CacheControl = "public,max-age=31536000,immutable"
+  });
+
+  var storeImagesRoot = StoreImageStoragePaths.ResolveRoot(app.Environment.ContentRootPath);
+  Directory.CreateDirectory(storeImagesRoot);
+  app.UseStaticFiles(new StaticFileOptions
+  {
+    FileProvider = new PhysicalFileProvider(storeImagesRoot),
+    RequestPath = StoreImageStoragePaths.RequestPath,
     OnPrepareResponse = context =>
       context.Context.Response.Headers.CacheControl = "public,max-age=31536000,immutable"
   });

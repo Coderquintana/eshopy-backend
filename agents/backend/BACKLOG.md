@@ -144,7 +144,7 @@ esto en una tarea.
 
 ## EN PROGRESO
 
-_(vacio)_
+_(vacío — F-13A aprobado por el usuario y movido a COMPLETADAS como C-67)_
 
 ---
 
@@ -265,3 +265,4 @@ _(vacio)_
 | C-64 | F5-04 imagen de producto: `Product.ImageUrl`, endpoint multipart protegido por `CatalogWrite` y `rowVersion`, validación real de JPEG/PNG/WebP hasta 5 MB, orientación automática, límite de 1200 px y normalización WebP. Storage local con URLs públicas inmutables y limpieza segura de archivos reemplazados o fallidos. Contratos públicos/admin, migración, documentación y Postman actualizados | Catalog | 2026-09-12 |
 | C-65 | D-06 primer acceso de un tenant nuevo: `IKeycloakUserProvisioner.CreateUserAsync` devuelve `KeycloakUserProvisioningResult` (UserId + TemporaryPassword, antes solo el id); `POST /api/onboarding/tenants` expone `OwnerTemporaryPassword` una sola vez en `TenantOnboardingResultDto`, mismo criterio que `Order.AccessToken`. Verificado en vivo contra Keycloak real (password-grant con la password devuelta responde "Account is not fully set up", no "Invalid user credentials") | Tenants/Identity | 2026-09-12 |
 | C-66 | D-07 Products a lote: `POST/PUT /api/products` migraron a lote (sin forma singular en paralelo), persistencia todo-o-nada vía `IProductRepository.AddRangeAsync`/`UpdateRangeAsync` (un solo `SaveChangesAsync`). Duplicados de slug/SKU detectados tanto contra la base como dentro del propio lote. `PATCH .../status` y DELETE quedaron fuera a propósito. Verificado en vivo contra SQL Server real: batch de altas, slug duplicado intra-lote rechazado sin crear nada, un RowVersion desactualizado en un batch de 2 ediciones rechaza ambas | Catalog | 2026-09-12 |
+| C-67 | F-13A subida real de logo y portada de Store: endpoints multipart/DELETE protegidos por `StoreWrite`, validación real JPEG/PNG/WebP hasta 5 MB, orientación, WebP y límites de 800/1920 px. URLs públicas inmutables por Store y limpieza posterior a la persistencia, restringida a la carpeta del tenant. Sin migración: reutiliza `LogoUrl` y `StoreTheme.HeroImageUrl`. Aprobado por el usuario; suite no ejecutada por instrucción explícita | Tenants/Store | 2026-09-12 |

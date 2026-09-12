@@ -43,7 +43,7 @@
 | `CurrencyCode` | `string` | No | `"PYG"` en MVP. Heredado por productos y pedidos |
 | `Timezone` | `string` | No | `"America/Asuncion"` default |
 | `PrimaryColor` | `string?` | Sí | Hex color de marca |
-| `LogoUrl` | `string?` | Sí | URL del logo |
+| `LogoUrl` | `string?` | Sí | URL HTTP/HTTPS o ruta administrada bajo `/uploads/stores/{storeId}/` |
 | `BackgroundColor` | `string?` | Sí | Hex color de fondo |
 | `Description` | `string?` | Sí | Descripción pública |
 | `ContactWhatsapp` | `string?` | Sí | WhatsApp público, mínimo 7 dígitos |
@@ -58,8 +58,9 @@
 > **Extensibilidad cosmética**: los campos de identidad y contacto son columnas reales con
 > validación de dominio. Los knobs cosméticos viven en `StoreTheme`, serializado en `Data`:
 > `FontFamily` (`Inter`, `Georgia`, `Trebuchet MS`), `HeadingScale` (`compact`, `normal`, `large`),
-> `BorderRadius` (`square`, `rounded`) y `SpacingDensity` (`compact`, `normal`, `spacious`).
-> Vaciar los cuatro limpia `Data`; agregar otro knob no requiere una migración.
+> `BorderRadius` (`square`, `rounded`), `SpacingDensity` (`compact`, `normal`, `spacious`) y
+> `HeroImageUrl`. Logo y portada se suben mediante `IStoreImageStorage`; vaciar la portada conserva
+> el fallback Editorial del frontend. Agregar otro knob no requiere una migración.
 
 ## TenantUser — Propiedades
 

@@ -59,6 +59,7 @@ public static class DependencyInjection
     // Store
     services.AddScoped<IStoreRepository, EfStoreRepository>();
     services.AddScoped<IStoreService, EfStoreService>();
+    services.AddSingleton<IStoreImageStorage, LocalDiskStoreImageStorage>();
 
     // Subscriptions
     services.AddScoped<ISubscriptionRepository, EfSubscriptionRepository>();
@@ -81,6 +82,8 @@ public static class DependencyInjection
     services.AddScoped<CreateTenantCommandHandler>();
     services.AddScoped<ActivateTenantCommandHandler>();
     services.AddScoped<UpdateStoreCommandHandler>();
+    services.AddScoped<UploadStoreImageCommandHandler>();
+    services.AddScoped<DeleteStoreImageCommandHandler>();
     services.AddScoped<GetStoreQueryHandler>();
     services.AddScoped<GetTenantByIdQueryHandler>();
     services.AddScoped<InviteTenantUserCommandHandler>();

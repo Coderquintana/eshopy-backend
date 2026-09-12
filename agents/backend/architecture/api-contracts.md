@@ -381,7 +381,8 @@ Configuración pública del store, resuelto por subdominio.
   "fontFamily": "Georgia",
   "headingScale": "large",
   "borderRadius": "rounded",
-  "spacingDensity": "spacious"
+  "spacingDensity": "spacious",
+  "heroImageUrl": "/uploads/stores/22222222.../hero-abc.webp"
 }
 ```
 
@@ -411,7 +412,8 @@ rompería precios ya registrados en Products/Orders.
   "fontFamily": "Georgia",
   "headingScale": "large",
   "borderRadius": "rounded",
-  "spacingDensity": "spacious"
+  "spacingDensity": "spacious",
+  "heroImageUrl": "/uploads/stores/22222222.../hero-abc.webp"
 }
 ```
 
@@ -419,6 +421,27 @@ Todos los campos nuevos son opcionales. Las URLs sociales aceptan solo HTTP/HTTP
 tema son catálogos cerrados: `FontFamily` = `Inter|Georgia|Trebuchet MS`, `HeadingScale` =
 `compact|normal|large`, `BorderRadius` = `square|rounded`, `SpacingDensity` =
 `compact|normal|spacious`.
+
+**Response 200**: `StoreProfileDto` actualizado.
+
+---
+
+### POST /api/store/images/{kind}
+Sube o reemplaza un medio público de la tienda. `kind` admite `logo` o `hero`.
+
+**Auth**: `StoreWrite`
+
+**Content-Type**: `multipart/form-data`, campo `file`. JPEG, PNG o WebP hasta 5 MB. El backend
+valida el contenido real, corrige orientación, redimensiona y guarda WebP con URL inmutable.
+
+**Response 200**: `StoreProfileDto` actualizado con `logoUrl` o `heroImageUrl` bajo
+`/uploads/stores/{storeId}/...`.
+
+### DELETE /api/store/images/{kind}
+Quita el logo o la portada personalizada. Para `hero`, `null` reactiva el fallback Editorial.
+La eliminación del archivo local anterior ocurre después de guardar el Store.
+
+**Auth**: `StoreWrite`
 
 **Response 200**: `StoreProfileDto` actualizado.
 

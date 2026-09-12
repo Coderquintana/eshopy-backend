@@ -157,6 +157,18 @@ public sealed class Store : AppEntity
     UpdatedAtUtc = updatedAtUtc;
   }
 
+  public void SetLogoUrl(string? logoUrl, DateTime updatedAtUtc)
+  {
+    LogoUrl = NormalizeOptional(logoUrl);
+    UpdatedAtUtc = updatedAtUtc;
+  }
+
+  public void SetHeroImageUrl(string? heroImageUrl, DateTime updatedAtUtc)
+  {
+    var theme = Theme ?? new StoreTheme(null, null, null, null);
+    UpdateTheme(theme with { HeroImageUrl = NormalizeOptional(heroImageUrl) }, updatedAtUtc);
+  }
+
   private static void EnsureName(string name)
   {
     if (string.IsNullOrWhiteSpace(name))

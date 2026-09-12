@@ -1,5 +1,6 @@
 using FluentValidation;
 using EShopy.Domain.Tenants;
+using System.Text.RegularExpressions;
 
 namespace EShopy.Application.Tenants.Commands;
 
@@ -31,8 +32,10 @@ public sealed class UpdateStoreCommandValidator : AbstractValidator<UpdateStoreC
       .When(x => !string.IsNullOrWhiteSpace(x.BackgroundColor));
 
     RuleFor(x => x.LogoUrl)
-      .Must(url => Uri.TryCreate(url, UriKind.Absolute, out _))
-      .WithMessage("El logo debe ser una URL valida.")
+      .MaximumLength(500)
+      .WithMessage("El logo no puede exceder 500 caracteres.")
+      .Must(IsAllowedStoreImageUrl)
+      .WithMessage("El logo debe ser una URL HTTP/HTTPS o una imagen administrada por eShopy.")
       .When(x => !string.IsNullOrWhiteSpace(x.LogoUrl));
 
     RuleFor(x => x.Description)
@@ -58,7 +61,12 @@ public sealed class UpdateStoreCommandValidator : AbstractValidator<UpdateStoreC
 
     AddOptionalHttpUrlRule(x => x.InstagramUrl, "La URL de Instagram");
     AddOptionalHttpUrlRule(x => x.FacebookUrl, "La URL de Facebook");
-    AddOptionalHttpUrlRule(x => x.HeroImageUrl, "La imagen de portada");
+    RuleFor(x => x.HeroImageUrl)
+      .MaximumLength(500)
+      .WithMessage("La imagen de portada no puede exceder 500 caracteres.")
+      .Must(IsAllowedStoreImageUrl)
+      .WithMessage("La imagen de portada debe ser una URL HTTP/HTTPS o una imagen administrada por eShopy.")
+      .When(x => !string.IsNullOrWhiteSpace(x.HeroImageUrl));
 
     RuleFor(x => x.Address)
       .MaximumLength(500)
@@ -97,5 +105,20 @@ public sealed class UpdateStoreCommandValidator : AbstractValidator<UpdateStoreC
       .Must(value => value is null || allowedValues.Contains(value.Trim()))
       .WithMessage($"{fieldName} no es una opción permitida.")
       .When(command => !string.IsNullOrWhiteSpace(selector.Compile()(command)));
+  }
+
+  private static bool IsAllowedStoreImageUrl(string? value)
+  {
+    if (string.IsNullOrWhiteSpace(value))
+      return true;
+
+    var normalized = value.Trim();
+    if (normalized.StartsWith("/uploads/stores/", StringComparison.Ordinal))
+      return Regex.IsMatch(
+        normalized,
+        "^/uploads/stores/[0-9a-f]{32}/(?:logo|hero)-[0-9a-f]{32}\\.webp$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    return Uri.TryCreate(normalized, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https";
   }
 }
